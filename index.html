@@ -47,7 +47,6 @@
             <div class="hidden md:flex space-x-6">
                 <a href="#home" class="text-gray-600 hover:text-blue-600 transition duration-150">Home</a>
                 <a href="#how-it-works" class="text-gray-600 hover:text-blue-600 transition duration-150">How it Works</a>
-                <a href="#faq" class="text-gray-600 hover:text-blue-600 transition duration-150">FAQ</a>
             </div>
             <button id="mobileMenuButton" class="md:hidden text-gray-600 hover:text-blue-600">
                 <i class="fas fa-bars text-2xl"></i>
@@ -56,7 +55,6 @@
         <div id="mobileMenu" class="md:hidden hidden bg-white shadow-lg py-2">
             <a href="#home" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">Home</a>
             <a href="#how-it-works" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">How it Works</a>
-            <a href="#faq" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">FAQ</a>
         </div>
     </header>
 
@@ -158,44 +156,11 @@
                 </div>
             </div>
         </section>
-
-        <section id="faq" class="mt-12 md:mt-16 py-12 bg-white rounded-xl shadow-xl">
-            <h2 class="text-2xl sm:text-3xl font-semibold text-center text-gray-800 mb-10">Frequently Asked Questions</h2>
-            <div class="max-w-3xl mx-auto space-y-6 px-6">
-                <div class="bg-gray-50 p-5 rounded-lg shadow-sm">
-                    <h4 class="text-lg font-medium text-gray-800 mb-2">Is PingDrop secure?</h4>
-                    <p class="text-gray-600 text-sm">Files are transferred directly between users' browsers using encrypted WebRTC channels (DTLS).
-                        We don't store your files on any server. The connection is peer-to-peer.</p>
-                </div>
-                <div class="bg-gray-50 p-5 rounded-lg shadow-sm">
-                    <h4 class="text-lg font-medium text-gray-800 mb-2">Is there a file size limit?</h4>
-                    <p class="text-gray-600 text-sm">
-                        Theoretically, there's no hard limit imposed by PingDrop itself. However, practical limits
-                        can be influenced by browser capabilities, available RAM, and network stability.
-                        Very large files (many GBs) might be challenging over unstable connections.
-                    </p>
-                </div>
-                <div class="bg-gray-50 p-5 rounded-lg shadow-sm">
-                    <h4 class="text-lg font-medium text-gray-800 mb-2">Do both users need to keep the browser window open?</h4>
-                    <p class="text-gray-600 text-sm">
-                        Yes. For a P2P transfer to occur, both the sender and the receiver must have the PingDrop
-                        webpage open in their browser and maintain an active internet connection until the transfer is complete.
-                    </p>
-                </div>
-                <div class="bg-gray-50 p-5 rounded-lg shadow-sm">
-                    <h4 class="text-lg font-medium text-gray-800 mb-2">What technology does it use?</h4>
-                    <p class="text-gray-600 text-sm">
-                        PingDrop utilizes WebRTC (Web Real-Time Communication), a technology built into modern web browsers
-                        that enables direct peer-to-peer connections for data transfer, video, and audio. PeerJS is used to simplify WebRTC implementation.
-                    </p>
-                </div>
-            </div>
-        </section>
-    </main>
+</main>
 
     <footer class="mt-16 py-8 bg-gray-800 text-gray-300 text-center">
         <p>&copy; <span id="currentYear"></span> PingDrop. All rights reserved. Powered by PeerJS.</p>
-        <p class="text-sm mt-1">A demonstration of direct browser-to-browser file sharing.</p>
+        <p class="text-sm mt-1">A direct browser-to-browser file sharing.</p>
     </footer>
 
     <script>
