@@ -932,7 +932,7 @@
         const timeElapsedSeconds = (currentTime - fileData.lastSpeedCalcTime) / 1000;
         let currentSpeedText = "Calculating...";
 
-        if (timeElapsedSeconds > 0.25 || isLast) { 
+        if (timeElapsedSeconds > 1 || isLast) { 
             const bytesSinceLastCalc = fileData.receivedSize - fileData.lastSpeedCalcBytes;
             const speed = timeElapsedSeconds > 0 ? (bytesSinceLastCalc / timeElapsedSeconds) : 0;
             currentSpeedText = formatSpeed(speed);
