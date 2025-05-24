@@ -229,9 +229,6 @@
     let fileChunksCollector = {}; 
     
     let senderFileRequestQueue = []; 
-    // No longer a single currentSendingFile; sender UI will show multiple
-    // let currentSendingFile = null; 
-
     let receiverDownloadQueue = [];
     let currentDownloadingFileReceiver = null; 
 
@@ -324,10 +321,9 @@
 
     function handleFileSelect(event) {
         const newFiles = Array.from(event.target.files);
-        let filesAddedThisTime = 0;
         newFiles.forEach(newFile => {
             if (!selectedFiles.some(existingFile => existingFile.name === newFile.name && existingFile.size === newFile.size)) {
-                selectedFiles.push(newFile); filesAddedThisTime++;
+                selectedFiles.push(newFile);
             } else { showMessage('send', `'${escapeHTML(newFile.name)}' is already selected.`, 'info'); }
         });
         renderSelectedFiles();
@@ -401,10 +397,9 @@
                 senderActiveUploadsContainer.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => {
                     const statusEl = el.querySelector('.upload-item-status');
                     if (statusEl && !statusEl.textContent.includes('Complete') && !statusEl.textContent.includes('Cancelled')) {
-                        statusEl.textContent = 'Interrupted (Connection Closed)';
-                        el.querySelector('.upload-item-progressbar').value = 0; // Or some indication of interruption
+                        statusEl.innerHTML = '<span class="text-yellow-600 font-medium">Interrupted (Connection Closed)</span>'; 
+                        el.querySelector('.upload-item-progressbar').value = 0; 
                     }
-                    // Optionally remove after a delay: setTimeout(() => el.remove(), 5000);
                 });
                 senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer);
             });
@@ -413,7 +408,7 @@
                 if (currentConnection && currentConnection.peer === conn.peer) currentConnection = null;
                  senderActiveUploadsContainer.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => {
                     const statusEl = el.querySelector('.upload-item-status');
-                     if (statusEl) statusEl.textContent = 'Failed (Connection Error)';
+                     if (statusEl) statusEl.innerHTML = '<span class="text-red-600 font-medium">Failed (Connection Error)</span>'; 
                      el.querySelector('.upload-item-progressbar').value = 0;
                 });
                 senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer);
@@ -431,20 +426,17 @@
         else { showMessage('send', 'Could not send file list: connection not open.', 'error'); }
     }
     
-    function processSenderQueue(conn) { // Pass connection to associate queue processing
-        if (!conn || !conn.open) return; // Don't process if connection isn't valid
+    function processSenderQueue(conn) { 
+        if (!conn || !conn.open) return; 
 
-        const activeUploadsForThisConn = Array.from(senderActiveUploadsContainer.children).filter(el => el.dataset.connId === conn.peer && !el.dataset.status?.includes('sending')).length;
-        // Simple: allow only one active chunk sending process per connection.
-        // More complex: could allow N parallel chunk streams if data channel supports it well & UI designed.
+        const activeUploadsForThisConn = Array.from(senderActiveUploadsContainer.children).filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length;
         if (activeUploadsForThisConn > 0) {
-             // console.log(`[SENDER QUEUE] Already sending a file to ${conn.peer}. Request queued.`);
             return;
         }
         
         const requestIndex = senderFileRequestQueue.findIndex(req => req.conn.peer === conn.peer);
         if (requestIndex !== -1) {
-            const nextRequest = senderFileRequestQueue.splice(requestIndex, 1)[0]; // Dequeue for this connection
+            const nextRequest = senderFileRequestQueue.splice(requestIndex, 1)[0]; 
             
             const escapedFileName = escapeHTML(nextRequest.file.name);
             let uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
@@ -453,19 +445,28 @@
                 uploadItem.className = 'upload-item p-3 bg-gray-50 rounded-lg shadow-sm';
                 uploadItem.dataset.filename = escapedFileName;
                 uploadItem.dataset.connId = conn.peer;
+                // Updated sender progress HTML structure
                 uploadItem.innerHTML = `
                     <p class="text-sm font-medium text-gray-700">Sending to ${conn.peer.slice(0,8)}...: <span class="upload-item-filename font-semibold">${escapedFileName}</span></p>
                     <progress class="upload-item-progressbar w-full h-2 rounded-lg mt-1" value="0" max="100"></progress>
-                    <p class="upload-item-status text-xs text-gray-500 mt-1">0% acknowledged</p>
+                    <p class="upload-item-status text-xs text-gray-500 mt-1">
+                        <span class="upload-percentage font-medium">0%</span>
+                        <span class="text-gray-400"> of </span>
+                        <span class="upload-total-size-text text-gray-400">${formatFileSize(nextRequest.file.size)}</span>
+                        <span class="text-gray-400"> (</span><span class="upload-acknowledged-size-text text-gray-400" style="display: inline-block; min-width: 75px; text-align: right;">0 Bytes</span><span class="text-gray-400"> acknowledged)</span>
+                    </p>
                 `;
                 senderActiveUploadsContainer.appendChild(uploadItem);
             }
-            uploadItem.dataset.status = "sending"; // Mark as actively sending
+            uploadItem.dataset.status = "sending"; 
             
             const uploadItemProgressBar = uploadItem.querySelector('.upload-item-progressbar');
-            const uploadItemStatus = uploadItem.querySelector('.upload-item-status');
+            const percentageSpan = uploadItem.querySelector('.upload-percentage'); // Will be updated by handleSenderData
+            const acknowledgedSizeSpan = uploadItem.querySelector('.upload-acknowledged-size-text'); // Will be updated
+
             if (uploadItemProgressBar) { uploadItemProgressBar.value = 0; uploadItemProgressBar.classList.remove('completed');}
-            if (uploadItemStatus) uploadItemStatus.textContent = `0% of ${formatFileSize(nextRequest.file.size)} (acknowledged by peer)`;
+            // Initial text is set in the HTML, specific parts updated by handleSenderData
+            
             uploadItem.dataset.totalSize = nextRequest.file.size;
 
             sendFileInChunks(conn, nextRequest.file);
@@ -479,10 +480,10 @@
                 const alreadyQueuedOrSending = senderFileRequestQueue.some(req => req.file.name === fileToShare.name && req.conn.peer === conn.peer) ||
                                             document.querySelector(`.upload-item[data-filename="${escapeHTML(data.fileName)}"][data-conn-id="${conn.peer}"]`);
                 if (!alreadyQueuedOrSending) {
-                    senderFileRequestQueue.push({ conn: conn, file: fileToShare, totalSize: fileToShare.size }); // Store totalSize here
+                    senderFileRequestQueue.push({ conn: conn, file: fileToShare, totalSize: fileToShare.size }); 
                     showMessage('send', `'${escapeHTML(data.fileName)}' added to send queue for ${conn.peer.slice(0,8)}.`, 'info');
                     processSenderQueue(conn); 
-                } else { /* showMessage('send', `'${escapeHTML(data.fileName)}' is already processing for ${conn.peer.slice(0,8)}.`, 'info'); */ }
+                }
             } else { 
                 conn.send({ type: 'error', message: `File '${data.fileName}' not found.` }); 
                 showMessage('send', `Peer requested non-existent file: '${data.fileName}'`, 'error');
@@ -494,24 +495,25 @@
             if (uploadItem) {
                 const totalSize = parseFloat(uploadItem.dataset.totalSize) || 0; 
                 const percentage = data.percentage;
-                const receivedBytes = data.receivedBytes;
+                const receivedBytes = data.receivedBytes; // This is what receiver acknowledged
 
                 const progressBar = uploadItem.querySelector('.upload-item-progressbar');
-                const statusText = uploadItem.querySelector('.upload-item-status');
+                const percentageSpan = uploadItem.querySelector('.upload-percentage');
+                const acknowledgedSizeSpan = uploadItem.querySelector('.upload-acknowledged-size-text');
 
                 if (progressBar) {
                     progressBar.value = percentage;
                     if (percentage === 100) progressBar.classList.add('completed');
                     else progressBar.classList.remove('completed');
                 }
-                if (statusText) {
-                    statusText.textContent = `${percentage}% of ${formatFileSize(totalSize)} (${formatFileSize(receivedBytes)} acknowledged by peer)`;
-                    if (percentage === 100) statusText.textContent += ' - Complete!';
-                }
-
+                if (percentageSpan) percentageSpan.textContent = `${percentage}%`;
+                if (acknowledgedSizeSpan) acknowledgedSizeSpan.textContent = formatFileSize(receivedBytes); // Update acknowledged size
+                
                 if (percentage === 100) {
+                    const statusP = uploadItem.querySelector('.upload-item-status');
+                    if(statusP) statusP.innerHTML = `<span class="text-green-600 font-medium">Complete! (${formatFileSize(totalSize)} acknowledged)</span>`;
                     uploadItem.dataset.status = "complete";
-                    setTimeout(() => { uploadItem.remove(); }, 5000); // Remove after 5s
+                    setTimeout(() => { uploadItem.remove(); }, 5000); 
                     senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer));
                     processSenderQueue(conn);      
                 }
@@ -521,26 +523,12 @@
             showMessage('send', `Receiver cancelled download for '${escapedFileName}'.`, 'info');
             const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
             if (uploadItem) {
-                const statusText = uploadItem.querySelector('.upload-item-status');
-                if (statusText) statusText.textContent = 'Cancelled by receiver';
+                const statusP = uploadItem.querySelector('.upload-item-status');
+                if (statusP) statusP.innerHTML = '<span class="text-yellow-600 font-medium">Cancelled by receiver</span>';
                 uploadItem.dataset.status = "cancelled";
                 setTimeout(() => uploadItem.remove(), 5000);
             }
-            // Remove from queue if it was there
             senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer));
-            // If this was the file actively being sent by sendFileInChunks, it needs to stop.
-            // sendFileInChunks checks against its current file, we need a way to signal it.
-            // For simplicity, we'll rely on the next processSenderQueue call if this was the active one.
-            // The sendFileInChunks for this conn will eventually error or complete its current chunk.
-            // A more robust way would be to have a cancellation flag for the active sendFileInChunks.
-            // For now, setting status and removing from queue is the main action.
-            // If this was the one being sent, the next call to processSenderQueue might pick a new file if this one is now "cancelled".
-            const activeUploadItem = Array.from(senderActiveUploadsContainer.children).find(el => el.dataset.connId === conn.peer && el.dataset.status === "sending");
-            if(activeUploadItem && activeUploadItem.dataset.filename === escapedFileName){
-                 // This signifies to sendFileInChunks that it should stop if it checks a global/scoped status
-                 // Or, the UI is updated, and sendFileInChunks will eventually finish or error out.
-                 // This part is tricky without direct abort of FileReader.
-            }
             processSenderQueue(conn);
         }
     }
@@ -552,16 +540,12 @@
         let chunkIndex = 0;
         const escapedFileName = escapeHTML(file.name);
         
-        // showMessage('send', `Starting to send '${escapedFileName}'...`, 'info'); // Moved to processSenderQueue UI setup
-
         function readNextChunk() {
             const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
             if (offset >= file.size || !uploadItem || uploadItem.dataset.status !== "sending") { 
                 if(uploadItem && uploadItem.dataset.status !== "sending" && uploadItem.dataset.status !== "complete") {
-                    // If cancelled or errored, ensure it's cleaned up from sender's perspective for this call.
                      console.log(`[SENDER DEBUG] Sending for ${escapedFileName} halted due to status change: ${uploadItem ? uploadItem.dataset.status : 'item gone'}`);
                 }
-                // If status is complete, it's handled by receiver-progress 100% ack already.
                 return; 
             }
             const slice = file.slice(offset, offset + CHUNK_SIZE);
@@ -572,8 +556,6 @@
             const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
             if (!conn || !conn.open || !uploadItem || uploadItem.dataset.status !== "sending") {
                 if (!conn || !conn.open) showMessage('send', `Connection closed while sending ${escapedFileName}.`, 'error');
-                // if(uploadItem && uploadItem.dataset.status !== "sending") already handled.
-                // No need to call processSenderQueue here, it's called on error/close of conn or 100% ack.
                 return;
             }
             try {
@@ -590,11 +572,10 @@
                 } else { 
                     conn.send({ type: 'transfer-end', name: file.name, success: true });
                     console.log(`[SENDER DEBUG] Finished sending all chunks of ${escapedFileName} to connection.`);
-                    // UI completion (100% bar, "Complete!" text) is now handled by receiver's 100% progress ack.
                 }
             } catch (error) {
                 showMessage('send', `Error sending chunk for ${escapedFileName}: ${error.message}`, 'error');
-                if(uploadItem) uploadItem.remove(); // Remove on error
+                if(uploadItem) uploadItem.remove(); 
                 senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === file.name && req.conn.peer === conn.peer));
                 processSenderQueue(conn);
             }
@@ -696,7 +677,7 @@
                     const item = document.createElement('div');
                     item.className = 'file-item p-3 bg-gray-100 rounded-lg shadow-sm'; 
                     item.dataset.filename = escapedFileName; 
-
+                    // Updated receiver progress HTML structure
                     item.innerHTML = `
                         <div class="flex justify-between items-center">
                             <div class="flex items-center overflow-hidden mr-2">
@@ -716,7 +697,14 @@
                         </div>
                         <div class="file-progress-container mt-2" style="display:none;">
                             <progress class="file-progress-bar w-full h-2 rounded-lg" value="0" max="100"></progress>
-                            <p class="file-status-text text-xs text-gray-500 mt-1"></p>
+                            <p class="file-status-text text-xs text-gray-500 mt-1">
+                                <span class="progress-percentage font-medium">0%</span>
+                                <span class="text-gray-400"> of </span>
+                                <span class="total-size-text text-gray-400">${formatFileSize(file.size)}</span>
+                                <span class="text-gray-400"> (</span><span class="received-size-text text-gray-400" style="display: inline-block; min-width: 75px; text-align: right;">0 Bytes</span><span class="text-gray-400"> received)</span>
+                                <span class="text-gray-400"> - </span>
+                                <span class="speed-text font-medium">Waiting...</span>
+                            </p>
                         </div>`;
                     receivedFilesList.appendChild(item);
                     item.querySelector('.download-btn').addEventListener('click', function() {
@@ -728,7 +716,11 @@
                 });
                 if (downloadModeSelector) downloadModeSelector.style.display = 'block';
                 if (downloadAllContainer) downloadAllContainer.style.display = 'block';
-            } else { /* ... no files ... */ }
+            } else { 
+                if (downloadModeSelector) downloadModeSelector.style.display = 'none';
+                if (downloadAllContainer) downloadAllContainer.style.display = 'none';
+                showMessage('receive', 'Sender has no files to share at the moment.', 'info');
+            }
         } else if (data.type === 'file-chunk') {
             processFileChunk(data);
         } else if (data.type === 'transfer-end') { 
@@ -739,12 +731,18 @@
                 if (fileItemElement) {
                     const progressContainer = fileItemElement.querySelector('.file-progress-container');
                     const downloadButton = fileItemElement.querySelector('.download-btn');
-                    if (progressContainer) progressContainer.style.display = 'none';
-                    if (downloadButton) downloadButton.disabled = false; // Re-enable on error
+                    const statusP = fileItemElement.querySelector('.file-status-text');
+                    if (statusP) statusP.innerHTML = `<span class="text-red-600 font-medium">Error from Sender</span>`;
+                    if (progressContainer && !fileChunksCollector[data.name]?.completed) progressContainer.style.display = 'block'; 
+                    else if (progressContainer) progressContainer.style.display = 'none';
+                    
+                    if (downloadButton) { downloadButton.disabled = false; downloadButton.style.display = 'inline-flex';}
+                    const cancelButton = fileItemElement.querySelector('.cancel-btn');
+                    if (cancelButton) cancelButton.style.display = 'none';
                 }
-                if (data.name === currentDownloadingFileReceiver) { // If sequential and errored
+                if (data.name === currentDownloadingFileReceiver) { 
                     currentDownloadingFileReceiver = null;
-                    processReceiverDownloadQueue(); // Try next in sequential queue
+                    processReceiverDownloadQueue(); 
                 }
             }
         }
@@ -763,15 +761,14 @@
         const downloadMode = document.querySelector('input[name="downloadMode"]:checked').value;
         showMessage('receive', `Starting to download all ${fileItems.length} files (${downloadMode} mode)...`, 'info');
 
-        receiverDownloadQueue = []; // Clear and rebuild queue
+        receiverDownloadQueue = []; 
 
         fileItems.forEach(item => {
             const fileName = item.dataset.filename;
-            // Add to queue if not already completed
             if (fileName && (!fileChunksCollector[fileName] || !fileChunksCollector[fileName].completed)) {
                 const progressContainer = item.querySelector('.file-progress-container');
-                 // Only add if not already visibly downloading
-                if (!progressContainer || progressContainer.style.display === 'none') {
+                if (!progressContainer || progressContainer.style.display === 'none' || 
+                    (progressContainer.style.display === 'block' && !item.querySelector('.download-btn').style.display.includes('none')) ) { 
                     receiverDownloadQueue.push(fileName);
                 }
             }
@@ -779,8 +776,8 @@
 
         if (downloadMode === 'parallel') {
             receiverDownloadQueue.forEach(fileName => requestFileFromServer(fileName));
-            receiverDownloadQueue = []; // Clear after initiating all
-        } else { // sequential
+            receiverDownloadQueue = []; 
+        } else { 
             processReceiverDownloadQueue();
         }
 
@@ -802,7 +799,7 @@
         const fileItemElement = document.querySelector(`.file-item[data-filename="${escapeHTML(fileName)}"]`);
          if (!fileItemElement) {
             console.error(`Could not find file item for ${fileName}`);
-            if (fileName === currentDownloadingFileReceiver) { // If sequential and item vanished
+            if (fileName === currentDownloadingFileReceiver) { 
                 currentDownloadingFileReceiver = null;
                 processReceiverDownloadQueue();
             }
@@ -810,13 +807,17 @@
         }
 
         const downloadButton = fileItemElement.querySelector('.download-btn');
-        const cancelButton = fileItemElement.querySelector('.cancel-btn'); // Get cancel button
+        const cancelButton = fileItemElement.querySelector('.cancel-btn'); 
         const progressContainer = fileItemElement.querySelector('.file-progress-container');
         const progressBar = fileItemElement.querySelector('.file-progress-bar');
-        const statusText = fileItemElement.querySelector('.file-status-text');
+        
+        // Spans are now styled in the initial HTML, just need to update content
+        const progressPercentageSpan = fileItemElement.querySelector('.progress-percentage');
+        const receivedSizeSpan = fileItemElement.querySelector('.received-size-text');
+        const speedSpan = fileItemElement.querySelector('.speed-text');
 
         if (currentConnection && currentConnection.open) {
-            if (fileChunksCollector[fileName] && !fileChunksCollector[fileName].completed && progressContainer.style.display === 'block') {
+            if (fileChunksCollector[fileName] && !fileChunksCollector[fileName].completed && progressContainer.style.display === 'block' && downloadButton.style.display === 'none') {
                  showMessage('receive', `Download for '${escapeHTML(fileName)}' is already in progress.`, 'info');
                  return;
             }
@@ -824,20 +825,26 @@
             
             if (progressContainer) progressContainer.style.display = 'block';
             if (progressBar) { progressBar.value = 0; progressBar.classList.remove('completed'); }
-            if (statusText) statusText.textContent = '0% - Starting...';
-            if (downloadButton) downloadButton.style.display = 'none'; // Hide download button
-            if (cancelButton) cancelButton.style.display = 'inline-flex'; // Show cancel button
+            
+            // Reset to initial styled text
+            if (progressPercentageSpan) progressPercentageSpan.textContent = '0%';
+            if (receivedSizeSpan) receivedSizeSpan.textContent = '0 Bytes'; 
+            if (speedSpan) speedSpan.textContent = 'Waiting...';
+            
+            if (downloadButton) downloadButton.style.display = 'none'; 
+            if (cancelButton) cancelButton.style.display = 'inline-flex'; 
             
             fileChunksCollector[fileName] = { 
-                chunks: [], receivedSize: 0, totalSize: 0, type: '', completed: false, cancelled: false, // Add cancelled flag
-                lastSpeedCalcTime: Date.now(), lastSpeedCalcBytes: 0,
-                lastReportedPercentage: 0 
+                chunks: [], receivedSize: 0, totalSize: 0, type: '', completed: false, cancelled: false, 
+                lastSpeedCalcTime: Date.now(), 
+                lastSpeedCalcBytes: 0,
+                lastReportedPercentage: 0,
+                initialRequestTime: Date.now() // Added for final speed calculation
             };
         } else { 
             showMessage('receive', 'Not connected to sender. Please connect first.', 'error');
-             if (fileName === currentDownloadingFileReceiver) { // If sequential and connection lost
+             if (fileName === currentDownloadingFileReceiver) { 
                 currentDownloadingFileReceiver = null;
-                // Don't try to process queue if connection is lost
             }
          }
     }
@@ -859,18 +866,18 @@
             const downloadButton = fileItemElement.querySelector('.download-btn');
             const cancelButton = fileItemElement.querySelector('.cancel-btn');
             const progressContainer = fileItemElement.querySelector('.file-progress-container');
-            const statusText = fileItemElement.querySelector('.file-status-text');
+            const statusP = fileItemElement.querySelector('.file-status-text');
 
-            if (progressContainer) progressContainer.style.display = 'none';
-            if (statusText) statusText.textContent = 'Cancelled'; // Or clear it
+            if (statusP) statusP.innerHTML = `<span class="text-yellow-600 font-medium">Cancelled by User</span>`;
+            if (progressContainer) progressContainer.style.display = 'block'; 
+
             if (downloadButton) {
-                 downloadButton.style.display = 'inline-flex'; // Show download button again
+                 downloadButton.style.display = 'inline-flex'; 
                  downloadButton.disabled = false;
             }
-            if (cancelButton) cancelButton.style.display = 'none'; // Hide cancel button
+            if (cancelButton) cancelButton.style.display = 'none'; 
         }
         
-        // If this was the current file in sequential download, move to the next
         if (fileName === currentDownloadingFileReceiver) {
             currentDownloadingFileReceiver = null;
             processReceiverDownloadQueue();
@@ -884,7 +891,7 @@
         
         if (fileChunksCollector[name] && fileChunksCollector[name].cancelled) {
             console.log(`[RECEIVER DEBUG] Ignoring chunk for cancelled download: ${name}`);
-            return; // Stop processing if cancelled
+            return; 
         }
 
         const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
@@ -894,15 +901,19 @@
         }
 
         const progressBar = fileItemElement.querySelector('.file-progress-bar');
-        const statusText = fileItemElement.querySelector('.file-status-text');
         const downloadButton = fileItemElement.querySelector('.download-btn');
         const cancelButton = fileItemElement.querySelector('.cancel-btn');
+        const progressPercentageSpan = fileItemElement.querySelector('.progress-percentage');
+        const totalSizeSpan = fileItemElement.querySelector('.total-size-text'); 
+        const receivedSizeSpan = fileItemElement.querySelector('.received-size-text');
+        const speedSpan = fileItemElement.querySelector('.speed-text');
         
         if (!fileChunksCollector[name]) {
             fileChunksCollector[name] = { 
                 chunks: [], receivedSize: 0, totalSize: fileSize || 0, type: fileType || '', 
                 completed: false, cancelled: false,
-                lastSpeedCalcTime: Date.now(), lastSpeedCalcBytes: 0, lastReportedPercentage: 0
+                lastSpeedCalcTime: Date.now(), lastSpeedCalcBytes: 0, lastReportedPercentage: 0,
+                initialRequestTime: Date.now() // Added for final speed calculation
             };
             const progressContainer = fileItemElement.querySelector('.file-progress-container');
             if (progressContainer) progressContainer.style.display = 'block'; 
@@ -917,33 +928,35 @@
         fileData.receivedSize += chunk.byteLength;
 
 
-        if (!fileData.totalSize && fileSize) fileData.totalSize = fileSize;
+        if (!fileData.totalSize && fileSize) { 
+            fileData.totalSize = fileSize;
+            if(totalSizeSpan) totalSizeSpan.textContent = formatFileSize(fileData.totalSize);
+        }
         if (!fileData.type && fileType) fileData.type = fileType;
 
         let progress = 0;
         if (fileData.totalSize > 0) {
             progress = Math.round((fileData.receivedSize / fileData.totalSize) * 100);
-        } else if (totalChunks > 0) {
+        } else if (totalChunks > 0) { 
             progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
         }
+        
         if (progressBar) progressBar.value = progress;
+        if(progressPercentageSpan) progressPercentageSpan.textContent = `${progress}%`; // Always update percentage
 
         const currentTime = Date.now();
         const timeElapsedSeconds = (currentTime - fileData.lastSpeedCalcTime) / 1000;
-        let currentSpeedText = "Calculating...";
 
-        if (timeElapsedSeconds > 1 || isLast) { 
+        if (timeElapsedSeconds >= 1) { 
             const bytesSinceLastCalc = fileData.receivedSize - fileData.lastSpeedCalcBytes;
             const speed = timeElapsedSeconds > 0 ? (bytesSinceLastCalc / timeElapsedSeconds) : 0;
-            currentSpeedText = formatSpeed(speed);
+            
+            if(speedSpan) speedSpan.textContent = formatSpeed(speed);
+            if(receivedSizeSpan) receivedSizeSpan.textContent = formatFileSize(fileData.receivedSize);
+
             fileData.lastSpeedCalcBytes = fileData.receivedSize;
             fileData.lastSpeedCalcTime = currentTime;
-        } else if (statusText && statusText.textContent.includes("B/s")) {
-            const parts = statusText.textContent.split(' - ');
-            if (parts.length > 1) currentSpeedText = parts[parts.length -1];
         }
-
-        if(statusText) statusText.textContent = `${progress}% of ${formatFileSize(fileData.totalSize || 0)} (${formatFileSize(fileData.receivedSize)} received) - ${currentSpeedText}`;
 
         if (currentConnection && currentConnection.open && fileData.totalSize > 0) {
             const currentFlooredPercentage = Math.floor(progress);
@@ -957,39 +970,53 @@
                 }
             }
         }
-        // ... (end of progress and speed calculation) ...
-
 
         if (isLast) {
-
             let allChunksReceived = true;
             if(totalChunks > 0 && fileData.chunks.length < totalChunks) allChunksReceived = false;
             else if (totalChunks > 0) { for (let i = 0; i < totalChunks; i++) { if (!fileData.chunks[i]) { allChunksReceived = false; break; } } }
             else if (fileData.totalSize > 0 && fileData.receivedSize < fileData.totalSize) allChunksReceived = false;
 
             if (allChunksReceived && fileData.receivedSize >= (fileData.totalSize || 0) ) {
+                // Final update for received size and speed before "Downloaded!"
+                if(receivedSizeSpan) receivedSizeSpan.textContent = formatFileSize(fileData.receivedSize);
+                if(speedSpan) {
+                    const finalTotalTimeSeconds = (Date.now() - fileData.initialRequestTime) / 1000;
+                    const overallSpeed = finalTotalTimeSeconds > 0 ? fileData.receivedSize / finalTotalTimeSeconds : 0;
+                    speedSpan.textContent = formatSpeed(overallSpeed);
+                }
 
                 const completeFileBlob = new Blob(fileData.chunks, { type: fileData.type || 'application/octet-stream' });
                 triggerDownload(completeFileBlob, name);
                 showMessage('receive', `'${escapedFileName}' downloaded successfully!`, 'success');
                 fileData.completed = true;
                 if(progressBar) progressBar.classList.add('completed');
-                if(statusText) statusText.textContent = `Downloaded! (${formatFileSize(fileData.totalSize)})`;
+                
+                const statusP = fileItemElement.querySelector('.file-status-text');
+                if(statusP) statusP.innerHTML = `<span class="text-green-600 font-medium">Downloaded! (${formatFileSize(fileData.totalSize)})</span>`;
+
                 if(downloadButton) {
                     downloadButton.innerHTML = '<i class="fas fa-check-circle"></i> Done';
                     downloadButton.classList.replace('bg-green-500', 'bg-gray-400');
                     downloadButton.classList.replace('hover:bg-green-600', 'hover:bg-gray-400');
-                    downloadButton.style.display = 'inline-flex'; // Ensure it's visible
+                    downloadButton.style.display = 'inline-flex'; 
                 }
-                if (cancelButton) cancelButton.style.display = 'none'; // Hide cancel button
+                if (cancelButton) cancelButton.style.display = 'none'; 
 
-                if (currentConnection && currentConnection.open && fileData.lastReportedPercentage !== 100) { /* ... send 100% ... */ }
+                if (currentConnection && currentConnection.open && fileData.lastReportedPercentage !== 100 && fileData.totalSize > 0) { 
+                    currentConnection.send({
+                        type: 'receiver-progress', fileName: name,
+                        percentage: 100, receivedBytes: fileData.receivedSize
+                    });
+                    fileData.lastReportedPercentage = 100;
+                }
                 if (name === currentDownloadingFileReceiver) { currentDownloadingFileReceiver = null; processReceiverDownloadQueue(); }
 
             } else {
-
                 showMessage('receive', `Error: Missing chunks for '${escapedFileName}'. Download failed.`, 'error');
-                if(statusText) statusText.textContent = `Error - Incomplete`;
+                const statusP = fileItemElement.querySelector('.file-status-text');
+                if(statusP) statusP.innerHTML = `<span class="text-red-600 font-medium">Error - Incomplete</span>`;
+
                 if(downloadButton) {
                     downloadButton.disabled = false; 
                     downloadButton.style.display = 'inline-flex';
@@ -1017,7 +1044,7 @@
         if (shareIdFromUrl) {
             const receiveTabLink = Array.from(tabLinks).find(link => link.getAttribute('onclick').includes('receive-tab'));
             if (receiveTabLink) openTab({ currentTarget: receiveTabLink }, 'receive-tab');
-            senderIdInput.value = shareIdFromUrl;
+            if(senderIdInput) senderIdInput.value = shareIdFromUrl;
             showMessage('receive', `Sender ID detected from URL. Click 'Connect to Sender' to proceed.`, 'info');
         }
     });
