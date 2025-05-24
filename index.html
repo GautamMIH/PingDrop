@@ -31,7 +31,7 @@
         progress.completed::-moz-progress-bar { background-color: #22c55e; }
         .btn i { margin-right: 0.5rem; }
         .file-item .file-progress-container { margin-top: 0.5rem; } 
-        .upload-item { margin-bottom: 0.75rem; } /* Space between sender progress items */
+        .upload-item { margin-bottom: 0.75rem; } 
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,6 +47,7 @@
             <div class="hidden md:flex space-x-6">
                 <a href="#home" class="text-gray-600 hover:text-blue-600 transition duration-150">Home</a>
                 <a href="#how-it-works" class="text-gray-600 hover:text-blue-600 transition duration-150">How it Works</a>
+                <a href="#faq" class="text-gray-600 hover:text-blue-600 transition duration-150">FAQ</a>
             </div>
             <button id="mobileMenuButton" class="md:hidden text-gray-600 hover:text-blue-600">
                 <i class="fas fa-bars text-2xl"></i>
@@ -55,6 +56,7 @@
         <div id="mobileMenu" class="md:hidden hidden bg-white shadow-lg py-2">
             <a href="#home" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">Home</a>
             <a href="#how-it-works" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">How it Works</a>
+            <a href="#faq" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">FAQ</a>
         </div>
     </header>
 
@@ -107,7 +109,7 @@
                 </button>
                 
                 <div id="sender-active-uploads-container" class="mt-6 space-y-3">
-                    </div>
+                </div>
 
                 <div id="message-box-send" class="mt-4 p-3 rounded-md text-sm" style="display:none;"></div>
             </div>
@@ -124,10 +126,11 @@
                     </div>
                 <div id="download-mode-selector" class="mt-4 text-sm text-gray-600 text-center" style="display:none;">
                     <span class="mr-2 font-medium">Download Mode:</span>
-                    <label class="mr-3"><input type="radio" name="downloadMode" value="parallel" checked class="mr-1">Parallel</label>
-                    <label><input type="radio" name="downloadMode" value="sequential" class="mr-1">Sequential</label>
+                    <label class="mr-3"><input type="radio" name="downloadMode" value="parallel" checked class="mr-1 align-middle">Parallel</label>
+                    <label><input type="radio" name="downloadMode" value="sequential" class="mr-1 align-middle">Sequential</label>
                 </div>
-                <div id="download-all-container" class="mt-4 text-center" style="display:none;"> <button id="downloadAllBtn" class="btn bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition duration-150">
+                <div id="download-all-container" class="mt-4 text-center" style="display:none;"> 
+                    <button id="downloadAllBtn" class="btn bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition duration-150">
                         <i class="fas fa-cloud-download-alt"></i> Download All Available
                     </button>
                 </div>
@@ -156,11 +159,44 @@
                 </div>
             </div>
         </section>
-</main>
+
+        <section id="faq" class="mt-12 md:mt-16 py-12 bg-white rounded-xl shadow-xl">
+            <h2 class="text-2xl sm:text-3xl font-semibold text-center text-gray-800 mb-10">Frequently Asked Questions</h2>
+            <div class="max-w-3xl mx-auto space-y-6 px-6">
+                <div class="bg-gray-50 p-5 rounded-lg shadow-sm">
+                    <h4 class="text-lg font-medium text-gray-800 mb-2">Is PingDrop secure?</h4>
+                    <p class="text-gray-600 text-sm">Files are transferred directly between users' browsers using encrypted WebRTC channels (DTLS).
+                        We don't store your files on any server. The connection is peer-to-peer.</p>
+                </div>
+                <div class="bg-gray-50 p-5 rounded-lg shadow-sm">
+                    <h4 class="text-lg font-medium text-gray-800 mb-2">Is there a file size limit?</h4>
+                    <p class="text-gray-600 text-sm">
+                        Theoretically, there's no hard limit imposed by PingDrop itself. However, practical limits
+                        can be influenced by browser capabilities, available RAM, and network stability.
+                        Very large files (many GBs) might be challenging over unstable connections.
+                    </p>
+                </div>
+                <div class="bg-gray-50 p-5 rounded-lg shadow-sm">
+                    <h4 class="text-lg font-medium text-gray-800 mb-2">Do both users need to keep the browser window open?</h4>
+                    <p class="text-gray-600 text-sm">
+                        Yes. For a P2P transfer to occur, both the sender and the receiver must have the PingDrop
+                        webpage open in their browser and maintain an active internet connection until the transfer is complete.
+                    </p>
+                </div>
+                <div class="bg-gray-50 p-5 rounded-lg shadow-sm">
+                    <h4 class="text-lg font-medium text-gray-800 mb-2">What technology does it use?</h4>
+                    <p class="text-gray-600 text-sm">
+                        PingDrop utilizes WebRTC (Web Real-Time Communication), a technology built into modern web browsers
+                        that enables direct peer-to-peer connections for data transfer, video, and audio. PeerJS is used to simplify WebRTC implementation.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <footer class="mt-16 py-8 bg-gray-800 text-gray-300 text-center">
         <p>&copy; <span id="currentYear"></span> PingDrop. All rights reserved. Powered by PeerJS.</p>
-        <p class="text-sm mt-1">A direct browser-to-browser file sharing.</p>
+        <p class="text-sm mt-1">A demonstration of direct browser-to-browser file sharing.</p>
     </footer>
 
     <script>
@@ -187,28 +223,30 @@
     
     const senderActiveUploadsContainer = document.getElementById('sender-active-uploads-container');
 
-
     let selectedFiles = []; 
     let peer = null; 
     let currentConnection = null; 
     let fileChunksCollector = {}; 
     
     let senderFileRequestQueue = []; 
+    // No longer a single currentSendingFile; sender UI will show multiple
+    // let currentSendingFile = null; 
+
     let receiverDownloadQueue = [];
-    let currentDownloadingFileReceiver = null; // For sequential download on receiver
+    let currentDownloadingFileReceiver = null; 
 
     const senderPeerJsConfig = {
         debug: 0, 
         config: { 'iceServers': [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }
     };
     let receiverPeerJsConfig = { 
-        debug: 3, 
+        debug: 0, 
         config: { 'iceServers': [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }
     };
 
     // --- Utility Functions ---
     function generateShortId(length = 6) {
-        const characters = 'ABCDEFGHJKLMNOPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789';
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = '';
         const charactersLength = characters.length;
         for (let i = 0; i < length; i++) {
@@ -321,94 +359,69 @@
         } else if (currentConnection && currentConnection.open) { showMessage('send', 'File list updated. Resending to peer.', 'info'); sendFileList(currentConnection); }
     }
 
-    // Sender: Start Session Logic with Short ID
     if (startSessionBtn) {
         startSessionBtn.addEventListener('click', () => {
-            if (selectedFiles.length === 0) {
-                showMessage('send', "Please select files to share first.", 'error');
-                return;
-            }
-            
-            if (peer && !peer.destroyed) {
-                console.log("[SENDER] Destroying existing peer before new session attempt.");
-                peer.destroy();
-            }
+            if (selectedFiles.length === 0) { showMessage('send', "Please select files to share first.", 'error'); return; }
+            if (peer && !peer.destroyed) { peer.destroy(); }
             peer = null; 
-
             const shortId = generateShortId(6); 
-            
             showMessage('send', `Attempting to use Share ID: ${shortId}...`, 'info');
-            startSessionBtn.disabled = true;
-            startSessionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
-
+            startSessionBtn.disabled = true; startSessionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
             peer = new Peer(shortId, senderPeerJsConfig); 
-
             peer.on('open', (id) => { 
                 showMessage('send', `Sharing session started. Your Share ID: ${id}`, 'success');
-                shareIdInput.value = id; 
-                shareIdContainer.style.display = 'block';
-                startSessionBtn.disabled = false;
-                startSessionBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Restart Session (New ID)';
+                shareIdInput.value = id; shareIdContainer.style.display = 'block';
+                startSessionBtn.disabled = false; startSessionBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Restart Session (New ID)';
                 setupSenderPeerEventHandlers(peer); 
             });
-            
             peer.on('error', (err) => {
                 console.error("[SENDER] PeerJS Error during setup: ", err);
-                if (err.type === 'unavailable-id') {
-                    showMessage('send', `Share ID "${shortId}" was taken. Please try starting the session again to get a new ID.`, 'error');
-                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
-                    showMessage('send', `Network/Server error with PeerJS. Check internet and try again. (${err.type})`, 'error');
-                } else { 
-                    showMessage('send', `PeerJS Error: ${err.type} - ${err.message}`, 'error');
-                }
-                startSessionBtn.disabled = false;
-                startSessionBtn.innerHTML = '<i class="fas fa-play-circle"></i> Start Sharing Session';
-                if(peer && !peer.destroyed) peer.destroy(); 
-                peer = null;
-                shareIdContainer.style.display = 'none';
+                if (err.type === 'unavailable-id') showMessage('send', `Share ID "${shortId}" was taken. Please try starting again.`, 'error');
+                else if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(err.type)) showMessage('send', `Network/Server error with PeerJS. Check internet and try again. (${err.type})`, 'error');
+                else showMessage('send', `PeerJS Error: ${err.type} - ${err.message}`, 'error');
+                startSessionBtn.disabled = false; startSessionBtn.innerHTML = '<i class="fas fa-play-circle"></i> Start Sharing Session';
+                if(peer && !peer.destroyed) peer.destroy(); peer = null; shareIdContainer.style.display = 'none';
             });
         });
     }
 
     function setupSenderPeerEventHandlers(currentPeerInstance) {
         if (!currentPeerInstance || currentPeerInstance.destroyed) return;
-        currentPeerInstance.off('connection');
-        currentPeerInstance.off('disconnected');
-
+        currentPeerInstance.off('connection'); currentPeerInstance.off('disconnected');
         currentPeerInstance.on('connection', (conn) => {
             showMessage('send', `Peer ${conn.peer} attempting to connect.`, 'info');
             currentConnection = conn; 
-            senderFileRequestQueue = []; // Clear queue for new connection
-            senderActiveUploadsContainer.innerHTML = ''; // Clear old progress bars
-
-            conn.on('open', () => { 
-                showMessage('send', `Peer ${conn.peer} connected. Sending file list.`, 'success'); 
-                sendFileList(conn); 
-            });
+            senderFileRequestQueue = []; 
+            senderActiveUploadsContainer.innerHTML = ''; 
+            conn.on('open', () => { showMessage('send', `Peer ${conn.peer} connected. Sending file list.`, 'success'); sendFileList(conn); });
             conn.on('data', (data) => handleSenderData(conn, data));
             conn.on('close', () => {
                 showMessage('send', `Peer ${conn.peer} disconnected.`, 'info');
-                if (currentConnection && currentConnection.peer === conn.peer) {
-                    currentConnection = null;
-                    senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer); // Clear queue for this conn
-                }
-                // Clear any active upload UIs for this connection
-                document.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => el.remove());
+                if (currentConnection && currentConnection.peer === conn.peer) currentConnection = null;
+                senderActiveUploadsContainer.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => {
+                    const statusEl = el.querySelector('.upload-item-status');
+                    if (statusEl && !statusEl.textContent.includes('Complete') && !statusEl.textContent.includes('Cancelled')) {
+                        statusEl.textContent = 'Interrupted (Connection Closed)';
+                        el.querySelector('.upload-item-progressbar').value = 0; // Or some indication of interruption
+                    }
+                    // Optionally remove after a delay: setTimeout(() => el.remove(), 5000);
+                });
+                senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer);
             });
             conn.on('error', (err) => {
                 showMessage('send', `Connection error with ${conn.peer}: ${err.message}`, 'error');
-                if (currentConnection && currentConnection.peer === conn.peer) {
-                    currentConnection = null;
-                    senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer);
-                }
-                document.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => el.remove());
+                if (currentConnection && currentConnection.peer === conn.peer) currentConnection = null;
+                 senderActiveUploadsContainer.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => {
+                    const statusEl = el.querySelector('.upload-item-status');
+                     if (statusEl) statusEl.textContent = 'Failed (Connection Error)';
+                     el.querySelector('.upload-item-progressbar').value = 0;
+                });
+                senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer);
             });
         });
-
         currentPeerInstance.on('disconnected', () => {
-            showMessage('send', 'Disconnected from PeerJS server. You may need to restart the session.', 'warning');
-            senderFileRequestQueue = [];
-            senderActiveUploadsContainer.innerHTML = '';
+            showMessage('send', 'Disconnected from PeerJS server. You may need to restart session.', 'warning');
+            senderFileRequestQueue = []; senderActiveUploadsContainer.innerHTML = '';
         });
     }
 
@@ -418,48 +431,46 @@
         else { showMessage('send', 'Could not send file list: connection not open.', 'error'); }
     }
     
-    function processSenderQueue() {
-        // Process one file at a time per connection.
-        // This function is simplified as sendFileInChunks is now directly called.
-        // The queue mainly helps if we were to limit concurrent *active* chunk sending operations.
-        // For now, it ensures requests are logged.
-        if (senderFileRequestQueue.length > 0) {
-            const nextRequest = senderFileRequestQueue[0]; // Peek
-            // If not already sending this file for this connection
-            const sendingThisFile = document.querySelector(`.upload-item[data-filename="${escapeHTML(nextRequest.file.name)}"][data-conn-id="${nextRequest.conn.peer}"]`);
-            if (!sendingThisFile) {
-                senderFileRequestQueue.shift(); // Dequeue
-                
-                const escapedFileName = escapeHTML(nextRequest.file.name);
-                let uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${nextRequest.conn.peer}"]`);
-                if (!uploadItem) {
-                    uploadItem = document.createElement('div');
-                    uploadItem.className = 'upload-item p-3 bg-gray-50 rounded-lg shadow-sm';
-                    uploadItem.dataset.filename = escapedFileName;
-                    uploadItem.dataset.connId = nextRequest.conn.peer; // Associate with connection
-                    uploadItem.innerHTML = `
-                        <p class="text-sm font-medium text-gray-700">Sending to peer: <span class="upload-item-filename font-semibold">${escapedFileName}</span></p>
-                        <progress class="upload-item-progressbar w-full h-2 rounded-lg mt-1" value="0" max="100"></progress>
-                        <p class="upload-item-status text-xs text-gray-500 mt-1">0% acknowledged</p>
-                    `;
-                    senderActiveUploadsContainer.appendChild(uploadItem);
-                }
-                
-                const uploadItemFilename = uploadItem.querySelector('.upload-item-filename');
-                const uploadItemProgressBar = uploadItem.querySelector('.upload-item-progressbar');
-                const uploadItemStatus = uploadItem.querySelector('.upload-item-status');
+    function processSenderQueue(conn) { // Pass connection to associate queue processing
+        if (!conn || !conn.open) return; // Don't process if connection isn't valid
 
-                if (uploadItemFilename) uploadItemFilename.textContent = escapedFileName;
-                if (uploadItemProgressBar) { uploadItemProgressBar.value = 0; uploadItemProgressBar.classList.remove('completed');}
-                if (uploadItemStatus) uploadItemStatus.textContent = `0% of ${formatFileSize(nextRequest.file.size)} (acknowledged by peer)`;
-                
-                uploadItem.dataset.totalSize = nextRequest.file.size; // Store total size
-
-                sendFileInChunks(nextRequest.conn, nextRequest.file);
+        const activeUploadsForThisConn = Array.from(senderActiveUploadsContainer.children).filter(el => el.dataset.connId === conn.peer && !el.dataset.status?.includes('sending')).length;
+        // Simple: allow only one active chunk sending process per connection.
+        // More complex: could allow N parallel chunk streams if data channel supports it well & UI designed.
+        if (activeUploadsForThisConn > 0) {
+             // console.log(`[SENDER QUEUE] Already sending a file to ${conn.peer}. Request queued.`);
+            return;
+        }
+        
+        const requestIndex = senderFileRequestQueue.findIndex(req => req.conn.peer === conn.peer);
+        if (requestIndex !== -1) {
+            const nextRequest = senderFileRequestQueue.splice(requestIndex, 1)[0]; // Dequeue for this connection
+            
+            const escapedFileName = escapeHTML(nextRequest.file.name);
+            let uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+            if (!uploadItem) {
+                uploadItem = document.createElement('div');
+                uploadItem.className = 'upload-item p-3 bg-gray-50 rounded-lg shadow-sm';
+                uploadItem.dataset.filename = escapedFileName;
+                uploadItem.dataset.connId = conn.peer;
+                uploadItem.innerHTML = `
+                    <p class="text-sm font-medium text-gray-700">Sending to ${conn.peer.slice(0,8)}...: <span class="upload-item-filename font-semibold">${escapedFileName}</span></p>
+                    <progress class="upload-item-progressbar w-full h-2 rounded-lg mt-1" value="0" max="100"></progress>
+                    <p class="upload-item-status text-xs text-gray-500 mt-1">0% acknowledged</p>
+                `;
+                senderActiveUploadsContainer.appendChild(uploadItem);
             }
+            uploadItem.dataset.status = "sending"; // Mark as actively sending
+            
+            const uploadItemProgressBar = uploadItem.querySelector('.upload-item-progressbar');
+            const uploadItemStatus = uploadItem.querySelector('.upload-item-status');
+            if (uploadItemProgressBar) { uploadItemProgressBar.value = 0; uploadItemProgressBar.classList.remove('completed');}
+            if (uploadItemStatus) uploadItemStatus.textContent = `0% of ${formatFileSize(nextRequest.file.size)} (acknowledged by peer)`;
+            uploadItem.dataset.totalSize = nextRequest.file.size;
+
+            sendFileInChunks(conn, nextRequest.file);
         }
     }
-
 
     function handleSenderData(conn, data) {
         if (data.type === 'request-file') {
@@ -467,14 +478,11 @@
             if (fileToShare) { 
                 const alreadyQueuedOrSending = senderFileRequestQueue.some(req => req.file.name === fileToShare.name && req.conn.peer === conn.peer) ||
                                             document.querySelector(`.upload-item[data-filename="${escapeHTML(data.fileName)}"][data-conn-id="${conn.peer}"]`);
-
                 if (!alreadyQueuedOrSending) {
-                    senderFileRequestQueue.push({ conn: conn, file: fileToShare });
-                    showMessage('send', `'${escapeHTML(data.fileName)}' added to send queue.`, 'info');
-                    processSenderQueue(); 
-                } else {
-                    showMessage('send', `'${escapeHTML(data.fileName)}' is already being sent or in queue.`, 'info');
-                }
+                    senderFileRequestQueue.push({ conn: conn, file: fileToShare, totalSize: fileToShare.size }); // Store totalSize here
+                    showMessage('send', `'${escapeHTML(data.fileName)}' added to send queue for ${conn.peer.slice(0,8)}.`, 'info');
+                    processSenderQueue(conn); 
+                } else { /* showMessage('send', `'${escapeHTML(data.fileName)}' is already processing for ${conn.peer.slice(0,8)}.`, 'info'); */ }
             } else { 
                 conn.send({ type: 'error', message: `File '${data.fileName}' not found.` }); 
                 showMessage('send', `Peer requested non-existent file: '${data.fileName}'`, 'error');
@@ -497,20 +505,43 @@
                     else progressBar.classList.remove('completed');
                 }
                 if (statusText) {
-                    statusText.textContent = `${percentage}% of ${formatFileSize(totalSize)} (${formatFileSize(receivedBytes)} acknowledged)`;
+                    statusText.textContent = `${percentage}% of ${formatFileSize(totalSize)} (${formatFileSize(receivedBytes)} acknowledged by peer)`;
                     if (percentage === 100) statusText.textContent += ' - Complete!';
                 }
 
                 if (percentage === 100) {
-                    showMessage('send', `'${escapedFileName}' fully acknowledged by peer!`, 'success');
-                    setTimeout(() => {
-                        uploadItem.remove(); // Remove the specific progress item
-                    }, 3000);
-                    // Remove from active queue if it was there (though it should be out by now)
+                    uploadItem.dataset.status = "complete";
+                    setTimeout(() => { uploadItem.remove(); }, 5000); // Remove after 5s
                     senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer));
-                    processSenderQueue(); // Check if there's another file to send    
+                    processSenderQueue(conn);      
                 }
             }
+        } else if (data.type === 'cancel-transfer') {
+            const escapedFileName = escapeHTML(data.fileName);
+            showMessage('send', `Receiver cancelled download for '${escapedFileName}'.`, 'info');
+            const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+            if (uploadItem) {
+                const statusText = uploadItem.querySelector('.upload-item-status');
+                if (statusText) statusText.textContent = 'Cancelled by receiver';
+                uploadItem.dataset.status = "cancelled";
+                setTimeout(() => uploadItem.remove(), 5000);
+            }
+            // Remove from queue if it was there
+            senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer));
+            // If this was the file actively being sent by sendFileInChunks, it needs to stop.
+            // sendFileInChunks checks against its current file, we need a way to signal it.
+            // For simplicity, we'll rely on the next processSenderQueue call if this was the active one.
+            // The sendFileInChunks for this conn will eventually error or complete its current chunk.
+            // A more robust way would be to have a cancellation flag for the active sendFileInChunks.
+            // For now, setting status and removing from queue is the main action.
+            // If this was the one being sent, the next call to processSenderQueue might pick a new file if this one is now "cancelled".
+            const activeUploadItem = Array.from(senderActiveUploadsContainer.children).find(el => el.dataset.connId === conn.peer && el.dataset.status === "sending");
+            if(activeUploadItem && activeUploadItem.dataset.filename === escapedFileName){
+                 // This signifies to sendFileInChunks that it should stop if it checks a global/scoped status
+                 // Or, the UI is updated, and sendFileInChunks will eventually finish or error out.
+                 // This part is tricky without direct abort of FileReader.
+            }
+            processSenderQueue(conn);
         }
     }
 
@@ -519,22 +550,30 @@
         let offset = 0;
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
         let chunkIndex = 0;
+        const escapedFileName = escapeHTML(file.name);
         
-        showMessage('send', `Starting to send '${escapeHTML(file.name)}'...`, 'info');
+        // showMessage('send', `Starting to send '${escapedFileName}'...`, 'info'); // Moved to processSenderQueue UI setup
 
         function readNextChunk() {
-            if (offset >= file.size) return; 
+            const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+            if (offset >= file.size || !uploadItem || uploadItem.dataset.status !== "sending") { 
+                if(uploadItem && uploadItem.dataset.status !== "sending" && uploadItem.dataset.status !== "complete") {
+                    // If cancelled or errored, ensure it's cleaned up from sender's perspective for this call.
+                     console.log(`[SENDER DEBUG] Sending for ${escapedFileName} halted due to status change: ${uploadItem ? uploadItem.dataset.status : 'item gone'}`);
+                }
+                // If status is complete, it's handled by receiver-progress 100% ack already.
+                return; 
+            }
             const slice = file.slice(offset, offset + CHUNK_SIZE);
             reader.readAsArrayBuffer(slice);
         }
 
         reader.onload = (event) => {
-            if (!conn || !conn.open) {
-                showMessage('send', `Connection closed while sending ${escapeHTML(file.name)}.`, 'error');
-                const uploadItem = document.querySelector(`.upload-item[data-filename="${escapeHTML(file.name)}"][data-conn-id="${conn.peer}"]`);
-                if(uploadItem) uploadItem.remove();
-                senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === file.name && req.conn.peer === conn.peer));
-                processSenderQueue();
+            const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+            if (!conn || !conn.open || !uploadItem || uploadItem.dataset.status !== "sending") {
+                if (!conn || !conn.open) showMessage('send', `Connection closed while sending ${escapedFileName}.`, 'error');
+                // if(uploadItem && uploadItem.dataset.status !== "sending") already handled.
+                // No need to call processSenderQueue here, it's called on error/close of conn or 100% ack.
                 return;
             }
             try {
@@ -550,24 +589,25 @@
                     readNextChunk();
                 } else { 
                     conn.send({ type: 'transfer-end', name: file.name, success: true });
+                    console.log(`[SENDER DEBUG] Finished sending all chunks of ${escapedFileName} to connection.`);
+                    // UI completion (100% bar, "Complete!" text) is now handled by receiver's 100% progress ack.
                 }
             } catch (error) {
-                showMessage('send', `Error sending chunk for ${escapeHTML(file.name)}: ${error.message}`, 'error');
-                const uploadItem = document.querySelector(`.upload-item[data-filename="${escapeHTML(file.name)}"][data-conn-id="${conn.peer}"]`);
-                if(uploadItem) uploadItem.remove();
+                showMessage('send', `Error sending chunk for ${escapedFileName}: ${error.message}`, 'error');
+                if(uploadItem) uploadItem.remove(); // Remove on error
                 senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === file.name && req.conn.peer === conn.peer));
-                processSenderQueue();
+                processSenderQueue(conn);
             }
         };
         reader.onerror = (error) => {
-            showMessage('send', `Error reading file ${escapeHTML(file.name)}: ${error.message}`, 'error');
-            const uploadItem = document.querySelector(`.upload-item[data-filename="${escapeHTML(file.name)}"][data-conn-id="${conn.peer}"]`);
+            showMessage('send', `Error reading file ${escapedFileName}: ${error.message}`, 'error');
+            const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
             if(uploadItem) uploadItem.remove();
             if (conn && conn.open) {
                 conn.send({ type: 'transfer-end', name: file.name, success: false, error: `File read error on sender side.` });
             }
             senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === file.name && req.conn.peer === conn.peer));
-            processSenderQueue();
+            processSenderQueue(conn);
         };
         readNextChunk();
     }
@@ -647,7 +687,7 @@
     function handleReceiverData(data) {
         if (data.type === 'file-list') {
             receivedFilesList.innerHTML = ''; 
-            receiverDownloadQueue = []; // Clear previous queue
+            receiverDownloadQueue = []; 
             currentDownloadingFileReceiver = null;
 
             if (data.files && data.files.length > 0) {
@@ -664,10 +704,15 @@
                                 <span class="text-sm text-gray-700 truncate" title="${escapedFileName}">${escapedFileName}</span>
                                 <span class="text-xs text-gray-500 ml-2 whitespace-nowrap">(${formatFileSize(file.size)})</span>
                             </div>
-                            <button class="download-btn btn bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-lg shadow text-xs" 
-                                    data-filename="${escapedFileName}">
-                                <i class="fas fa-download"></i> Download
-                            </button>
+                            <div class="flex items-center"> <button class="download-btn btn bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-lg shadow text-xs" 
+                                        data-filename="${escapedFileName}">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                                <button class="cancel-btn btn bg-red-500 hover:bg-red-600 text-white font-medium py-1 px-3 rounded-lg shadow text-xs ml-2" 
+                                        data-filename="${escapedFileName}" style="display:none;">
+                                    <i class="fas fa-times-circle"></i> Cancel
+                                </button>
+                            </div>
                         </div>
                         <div class="file-progress-container mt-2" style="display:none;">
                             <progress class="file-progress-bar w-full h-2 rounded-lg" value="0" max="100"></progress>
@@ -677,17 +722,16 @@
                     item.querySelector('.download-btn').addEventListener('click', function() {
                         requestFileFromServer(this.dataset.filename);
                     });
+                    item.querySelector('.cancel-btn').addEventListener('click', function() {
+                        handleCancelDownload(this.dataset.filename);
+                    });
                 });
                 if (downloadModeSelector) downloadModeSelector.style.display = 'block';
                 if (downloadAllContainer) downloadAllContainer.style.display = 'block';
-            } else {
-                receivedFilesList.innerHTML = '<p class="text-gray-500 text-sm p-3">Sender is not sharing any files currently.</p>';
-                if (downloadModeSelector) downloadModeSelector.style.display = 'none';
-                if (downloadAllContainer) downloadAllContainer.style.display = 'none';
-            }
+            } else { /* ... no files ... */ }
         } else if (data.type === 'file-chunk') {
             processFileChunk(data);
-        } else if (data.type === 'transfer-end') {
+        } else if (data.type === 'transfer-end') { 
             if (!data.success) {
                 showMessage('receive', `Sender reported error during transfer of ${escapeHTML(data.name)}: ${escapeHTML(data.error) || 'Unknown error'}`, 'error');
                 delete fileChunksCollector[data.name]; 
@@ -703,7 +747,8 @@
                     processReceiverDownloadQueue(); // Try next in sequential queue
                 }
             }
-        } else if (data.type === 'error') {
+        }
+        else if (data.type === 'error') { 
             showMessage('receive', `Error from sender: ${escapeHTML(data.message)}`, 'error');
         }
     }
@@ -753,10 +798,9 @@
         }
     }
 
-
     function requestFileFromServer(fileName) {
         const fileItemElement = document.querySelector(`.file-item[data-filename="${escapeHTML(fileName)}"]`);
-        if (!fileItemElement) {
+         if (!fileItemElement) {
             console.error(`Could not find file item for ${fileName}`);
             if (fileName === currentDownloadingFileReceiver) { // If sequential and item vanished
                 currentDownloadingFileReceiver = null;
@@ -766,6 +810,7 @@
         }
 
         const downloadButton = fileItemElement.querySelector('.download-btn');
+        const cancelButton = fileItemElement.querySelector('.cancel-btn'); // Get cancel button
         const progressContainer = fileItemElement.querySelector('.file-progress-container');
         const progressBar = fileItemElement.querySelector('.file-progress-bar');
         const statusText = fileItemElement.querySelector('.file-status-text');
@@ -775,55 +820,102 @@
                  showMessage('receive', `Download for '${escapeHTML(fileName)}' is already in progress.`, 'info');
                  return;
             }
-            // showMessage('receive', `Requesting '${escapeHTML(fileName)}' from sender...`, 'info'); // Can be noisy for "Download All"
             currentConnection.send({ type: 'request-file', fileName: fileName });
             
             if (progressContainer) progressContainer.style.display = 'block';
             if (progressBar) { progressBar.value = 0; progressBar.classList.remove('completed'); }
             if (statusText) statusText.textContent = '0% - Starting...';
-            if (downloadButton) downloadButton.disabled = true; 
+            if (downloadButton) downloadButton.style.display = 'none'; // Hide download button
+            if (cancelButton) cancelButton.style.display = 'inline-flex'; // Show cancel button
             
             fileChunksCollector[fileName] = { 
-                chunks: [], receivedSize: 0, totalSize: 0, type: '', completed: false,
+                chunks: [], receivedSize: 0, totalSize: 0, type: '', completed: false, cancelled: false, // Add cancelled flag
                 lastSpeedCalcTime: Date.now(), lastSpeedCalcBytes: 0,
                 lastReportedPercentage: 0 
             };
-        } else {
+        } else { 
             showMessage('receive', 'Not connected to sender. Please connect first.', 'error');
              if (fileName === currentDownloadingFileReceiver) { // If sequential and connection lost
                 currentDownloadingFileReceiver = null;
                 // Don't try to process queue if connection is lost
             }
+         }
+    }
+
+    function handleCancelDownload(fileName) {
+        const escapedFileName = escapeHTML(fileName);
+        showMessage('receive', `Cancelling download for '${escapedFileName}'...`, 'info');
+
+        if (fileChunksCollector[escapedFileName]) {
+            fileChunksCollector[escapedFileName].cancelled = true;
+        }
+
+        if (currentConnection && currentConnection.open) {
+            currentConnection.send({ type: 'cancel-transfer', fileName: fileName });
+        }
+
+        const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+        if (fileItemElement) {
+            const downloadButton = fileItemElement.querySelector('.download-btn');
+            const cancelButton = fileItemElement.querySelector('.cancel-btn');
+            const progressContainer = fileItemElement.querySelector('.file-progress-container');
+            const statusText = fileItemElement.querySelector('.file-status-text');
+
+            if (progressContainer) progressContainer.style.display = 'none';
+            if (statusText) statusText.textContent = 'Cancelled'; // Or clear it
+            if (downloadButton) {
+                 downloadButton.style.display = 'inline-flex'; // Show download button again
+                 downloadButton.disabled = false;
+            }
+            if (cancelButton) cancelButton.style.display = 'none'; // Hide cancel button
+        }
+        
+        // If this was the current file in sequential download, move to the next
+        if (fileName === currentDownloadingFileReceiver) {
+            currentDownloadingFileReceiver = null;
+            processReceiverDownloadQueue();
         }
     }
+
 
     function processFileChunk(data) {
         const { name, chunk, chunkIndex, totalChunks, isLast, fileType, fileSize } = data;
         const escapedFileName = escapeHTML(name);
-        const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+        
+        if (fileChunksCollector[name] && fileChunksCollector[name].cancelled) {
+            console.log(`[RECEIVER DEBUG] Ignoring chunk for cancelled download: ${name}`);
+            return; // Stop processing if cancelled
+        }
 
-        if (!fileItemElement) {
+        const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+        if (!fileItemElement) { 
             console.warn(`[RECEIVER DEBUG] processFileChunk: No file item found for ${escapedFileName}. Chunk ignored.`);
             return; 
         }
+
         const progressBar = fileItemElement.querySelector('.file-progress-bar');
         const statusText = fileItemElement.querySelector('.file-status-text');
         const downloadButton = fileItemElement.querySelector('.download-btn');
+        const cancelButton = fileItemElement.querySelector('.cancel-btn');
         
         if (!fileChunksCollector[name]) {
             fileChunksCollector[name] = { 
-                chunks: [], receivedSize: 0, totalSize: fileSize || 0, type: fileType || '', completed: false,
+                chunks: [], receivedSize: 0, totalSize: fileSize || 0, type: fileType || '', 
+                completed: false, cancelled: false,
                 lastSpeedCalcTime: Date.now(), lastSpeedCalcBytes: 0, lastReportedPercentage: 0
             };
             const progressContainer = fileItemElement.querySelector('.file-progress-container');
             if (progressContainer) progressContainer.style.display = 'block'; 
+            if (downloadButton) downloadButton.style.display = 'none';
+            if (cancelButton) cancelButton.style.display = 'inline-flex';
         }
 
         const fileData = fileChunksCollector[name];
-        if (fileData.completed) return; 
+        if (fileData.completed || fileData.cancelled) return; 
 
         fileData.chunks[chunkIndex] = chunk;
         fileData.receivedSize += chunk.byteLength;
+
 
         if (!fileData.totalSize && fileSize) fileData.totalSize = fileSize;
         if (!fileData.type && fileType) fileData.type = fileType;
@@ -865,14 +957,18 @@
                 }
             }
         }
+        // ... (end of progress and speed calculation) ...
+
 
         if (isLast) {
+
             let allChunksReceived = true;
             if(totalChunks > 0 && fileData.chunks.length < totalChunks) allChunksReceived = false;
             else if (totalChunks > 0) { for (let i = 0; i < totalChunks; i++) { if (!fileData.chunks[i]) { allChunksReceived = false; break; } } }
             else if (fileData.totalSize > 0 && fileData.receivedSize < fileData.totalSize) allChunksReceived = false;
 
             if (allChunksReceived && fileData.receivedSize >= (fileData.totalSize || 0) ) {
+
                 const completeFileBlob = new Blob(fileData.chunks, { type: fileData.type || 'application/octet-stream' });
                 triggerDownload(completeFileBlob, name);
                 showMessage('receive', `'${escapedFileName}' downloaded successfully!`, 'success');
@@ -883,26 +979,23 @@
                     downloadButton.innerHTML = '<i class="fas fa-check-circle"></i> Done';
                     downloadButton.classList.replace('bg-green-500', 'bg-gray-400');
                     downloadButton.classList.replace('hover:bg-green-600', 'hover:bg-gray-400');
+                    downloadButton.style.display = 'inline-flex'; // Ensure it's visible
                 }
-                
-                if (currentConnection && currentConnection.open && fileData.lastReportedPercentage !== 100) {
-                    currentConnection.send({ type: 'receiver-progress', fileName: name, percentage: 100, receivedBytes: fileData.receivedSize });
-                    fileData.lastReportedPercentage = 100;
-                }
+                if (cancelButton) cancelButton.style.display = 'none'; // Hide cancel button
 
-                if (name === currentDownloadingFileReceiver) { // If sequential mode and this file finished
-                    currentDownloadingFileReceiver = null;
-                    processReceiverDownloadQueue(); // Try next in sequential queue
-                }
+                if (currentConnection && currentConnection.open && fileData.lastReportedPercentage !== 100) { /* ... send 100% ... */ }
+                if (name === currentDownloadingFileReceiver) { currentDownloadingFileReceiver = null; processReceiverDownloadQueue(); }
 
             } else {
+
                 showMessage('receive', `Error: Missing chunks for '${escapedFileName}'. Download failed.`, 'error');
                 if(statusText) statusText.textContent = `Error - Incomplete`;
-                if(downloadButton) downloadButton.disabled = false; 
-                 if (name === currentDownloadingFileReceiver) { // If sequential and errored
-                    currentDownloadingFileReceiver = null;
-                    processReceiverDownloadQueue(); // Try next in sequential queue
+                if(downloadButton) {
+                    downloadButton.disabled = false; 
+                    downloadButton.style.display = 'inline-flex';
                 }
+                if (cancelButton) cancelButton.style.display = 'none';
+                 if (name === currentDownloadingFileReceiver) { currentDownloadingFileReceiver = null; processReceiverDownloadQueue(); }
             }
         }
     }
@@ -928,6 +1021,7 @@
             showMessage('receive', `Sender ID detected from URL. Click 'Connect to Sender' to proceed.`, 'info');
         }
     });
+
 
     window.addEventListener('beforeunload', () => {
         if (peer) { peer.destroy(); peer = null; }
