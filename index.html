@@ -203,6 +203,7 @@
     // --- PeerJS P2P Logic & UI Interaction Script ---
 
     const CHUNK_SIZE = 64 * 1024; 
+    const MAX_PARALLEL_SENDER_UPLOADS = 3; // Max concurrent file uploads from sender to one peer
 
     // DOM Elements
     const fileInput = document.getElementById('fileInput');
@@ -429,23 +430,32 @@
     function processSenderQueue(conn) { 
         if (!conn || !conn.open) return; 
 
-        const activeUploadsForThisConn = Array.from(senderActiveUploadsContainer.children).filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length;
-        if (activeUploadsForThisConn > 0) {
-            return;
-        }
-        
-        const requestIndex = senderFileRequestQueue.findIndex(req => req.conn.peer === conn.peer);
-        if (requestIndex !== -1) {
-            const nextRequest = senderFileRequestQueue.splice(requestIndex, 1)[0]; 
+        let activeUploadsCount = Array.from(senderActiveUploadsContainer.children)
+            .filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length;
+
+        while (activeUploadsCount < MAX_PARALLEL_SENDER_UPLOADS) {
+            const requestIndex = senderFileRequestQueue.findIndex(req => req.conn.peer === conn.peer);
+            if (requestIndex === -1) {
+                break; 
+            }
+
+            const nextRequest = senderFileRequestQueue.splice(requestIndex, 1)[0];
             
             const escapedFileName = escapeHTML(nextRequest.file.name);
             let uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
-            if (!uploadItem) {
+            
+            if (uploadItem && (uploadItem.dataset.status === "sending" || uploadItem.dataset.status === "complete" || uploadItem.dataset.status === "cancelled")) {
+                console.warn(`[SENDER QUEUE] Skipped ${escapedFileName} for ${conn.peer} as it's already handled (status: ${uploadItem.dataset.status}).`);
+                activeUploadsCount = Array.from(senderActiveUploadsContainer.children) 
+                    .filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length;
+                continue; 
+            }
+
+            if (!uploadItem) { 
                 uploadItem = document.createElement('div');
                 uploadItem.className = 'upload-item p-3 bg-gray-50 rounded-lg shadow-sm';
                 uploadItem.dataset.filename = escapedFileName;
                 uploadItem.dataset.connId = conn.peer;
-                // Updated sender progress HTML structure
                 uploadItem.innerHTML = `
                     <p class="text-sm font-medium text-gray-700">Sending to ${conn.peer.slice(0,8)}...: <span class="upload-item-filename font-semibold">${escapedFileName}</span></p>
                     <progress class="upload-item-progressbar w-full h-2 rounded-lg mt-1" value="0" max="100"></progress>
@@ -458,18 +468,22 @@
                 `;
                 senderActiveUploadsContainer.appendChild(uploadItem);
             }
+            
             uploadItem.dataset.status = "sending"; 
-            
-            const uploadItemProgressBar = uploadItem.querySelector('.upload-item-progressbar');
-            const percentageSpan = uploadItem.querySelector('.upload-percentage'); // Will be updated by handleSenderData
-            const acknowledgedSizeSpan = uploadItem.querySelector('.upload-acknowledged-size-text'); // Will be updated
-
-            if (uploadItemProgressBar) { uploadItemProgressBar.value = 0; uploadItemProgressBar.classList.remove('completed');}
-            // Initial text is set in the HTML, specific parts updated by handleSenderData
-            
             uploadItem.dataset.totalSize = nextRequest.file.size;
 
+            const uploadItemProgressBar = uploadItem.querySelector('.upload-item-progressbar');
+            const percentageSpan = uploadItem.querySelector('.upload-percentage');
+            const acknowledgedSizeSpan = uploadItem.querySelector('.upload-acknowledged-size-text');
+            const totalSizeTextSpan = uploadItem.querySelector('.upload-total-size-text');
+
+            if (uploadItemProgressBar) { uploadItemProgressBar.value = 0; uploadItemProgressBar.classList.remove('completed');}
+            if (percentageSpan) percentageSpan.textContent = '0%';
+            if (acknowledgedSizeSpan) acknowledgedSizeSpan.textContent = formatFileSize(0);
+            if (totalSizeTextSpan) totalSizeTextSpan.textContent = formatFileSize(nextRequest.file.size);
+
             sendFileInChunks(conn, nextRequest.file);
+            activeUploadsCount++;
         }
     }
 
@@ -495,7 +509,7 @@
             if (uploadItem) {
                 const totalSize = parseFloat(uploadItem.dataset.totalSize) || 0; 
                 const percentage = data.percentage;
-                const receivedBytes = data.receivedBytes; // This is what receiver acknowledged
+                const receivedBytes = data.receivedBytes; 
 
                 const progressBar = uploadItem.querySelector('.upload-item-progressbar');
                 const percentageSpan = uploadItem.querySelector('.upload-percentage');
@@ -507,15 +521,15 @@
                     else progressBar.classList.remove('completed');
                 }
                 if (percentageSpan) percentageSpan.textContent = `${percentage}%`;
-                if (acknowledgedSizeSpan) acknowledgedSizeSpan.textContent = formatFileSize(receivedBytes); // Update acknowledged size
+                if (acknowledgedSizeSpan) acknowledgedSizeSpan.textContent = formatFileSize(receivedBytes); 
                 
                 if (percentage === 100) {
                     const statusP = uploadItem.querySelector('.upload-item-status');
                     if(statusP) statusP.innerHTML = `<span class="text-green-600 font-medium">Complete! (${formatFileSize(totalSize)} acknowledged)</span>`;
-                    uploadItem.dataset.status = "complete";
+                    uploadItem.dataset.status = "complete"; // Mark as complete
                     setTimeout(() => { uploadItem.remove(); }, 5000); 
-                    senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer));
-                    processSenderQueue(conn);      
+                    // senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer)); // Already removed when taken from queue
+                    processSenderQueue(conn); // Try to send next file if any in queue and limit not reached     
                 }
             }
         } else if (data.type === 'cancel-transfer') {
@@ -525,11 +539,13 @@
             if (uploadItem) {
                 const statusP = uploadItem.querySelector('.upload-item-status');
                 if (statusP) statusP.innerHTML = '<span class="text-yellow-600 font-medium">Cancelled by receiver</span>';
-                uploadItem.dataset.status = "cancelled";
+                uploadItem.dataset.status = "cancelled"; // Mark as cancelled
                 setTimeout(() => uploadItem.remove(), 5000);
             }
+            // Remove from queue if it was there (it shouldn't be if it was being sent, but for safety)
             senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer));
-            processSenderQueue(conn);
+            // If this was an active transfer, sendFileInChunks for this file will stop on next chunk attempt due to status change.
+            processSenderQueue(conn); // Check if another file can be started
         }
     }
 
@@ -542,10 +558,13 @@
         
         function readNextChunk() {
             const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+            // Stop if file size reached, or item removed, or status is not "sending" (e.g., cancelled)
             if (offset >= file.size || !uploadItem || uploadItem.dataset.status !== "sending") { 
                 if(uploadItem && uploadItem.dataset.status !== "sending" && uploadItem.dataset.status !== "complete") {
-                     console.log(`[SENDER DEBUG] Sending for ${escapedFileName} halted due to status change: ${uploadItem ? uploadItem.dataset.status : 'item gone'}`);
+                     console.log(`[SENDER DEBUG] Sending for ${escapedFileName} to ${conn.peer} halted (status: ${uploadItem.dataset.status}, offset: ${offset}).`);
                 }
+                // If status changed (e.g. cancelled), processSenderQueue would have been called by handler.
+                // If simply end of file, the transfer-end message is sent below.
                 return; 
             }
             const slice = file.slice(offset, offset + CHUNK_SIZE);
@@ -556,6 +575,8 @@
             const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
             if (!conn || !conn.open || !uploadItem || uploadItem.dataset.status !== "sending") {
                 if (!conn || !conn.open) showMessage('send', `Connection closed while sending ${escapedFileName}.`, 'error');
+                // If item or status changed, implies cancellation or error handled elsewhere, so just stop.
+                // processSenderQueue will be called by the event that changed the status (e.g. cancel-transfer, conn close)
                 return;
             }
             try {
@@ -570,27 +591,36 @@
                 if (offset < file.size) {
                     readNextChunk();
                 } else { 
+                    // All chunks sent for this file. Receiver will confirm with 100% progress.
                     conn.send({ type: 'transfer-end', name: file.name, success: true });
-                    console.log(`[SENDER DEBUG] Finished sending all chunks of ${escapedFileName} to connection.`);
+                    console.log(`[SENDER DEBUG] Finished sending all chunks of ${escapedFileName} to ${conn.peer}.`);
+                    // Note: UI update to "Complete" for sender is handled by receiver's 100% progress acknowledgement.
                 }
             } catch (error) {
                 showMessage('send', `Error sending chunk for ${escapedFileName}: ${error.message}`, 'error');
-                if(uploadItem) uploadItem.remove(); 
-                senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === file.name && req.conn.peer === conn.peer));
-                processSenderQueue(conn);
+                if(uploadItem) {
+                    uploadItem.dataset.status = "error"; // Mark as error
+                    const statusP = uploadItem.querySelector('.upload-item-status');
+                    if(statusP) statusP.innerHTML = `<span class="text-red-600 font-medium">Error Sending Chunk</span>`;
+                }
+                // No need to remove from queue here, it was already removed when picked.
+                processSenderQueue(conn); // Attempt to process next in queue for this connection
             }
         };
         reader.onerror = (error) => {
             showMessage('send', `Error reading file ${escapedFileName}: ${error.message}`, 'error');
             const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
-            if(uploadItem) uploadItem.remove();
+            if(uploadItem) {
+                uploadItem.dataset.status = "error"; // Mark as error
+                const statusP = uploadItem.querySelector('.upload-item-status');
+                if(statusP) statusP.innerHTML = `<span class="text-red-600 font-medium">File Read Error</span>`;
+            }
             if (conn && conn.open) {
                 conn.send({ type: 'transfer-end', name: file.name, success: false, error: `File read error on sender side.` });
             }
-            senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === file.name && req.conn.peer === conn.peer));
-            processSenderQueue(conn);
+            processSenderQueue(conn); // Attempt to process next in queue
         };
-        readNextChunk();
+        readNextChunk(); // Start the process
     }
 
     function copyShareId() {
@@ -677,7 +707,6 @@
                     const item = document.createElement('div');
                     item.className = 'file-item p-3 bg-gray-100 rounded-lg shadow-sm'; 
                     item.dataset.filename = escapedFileName; 
-                    // Updated receiver progress HTML structure
                     item.innerHTML = `
                         <div class="flex justify-between items-center">
                             <div class="flex items-center overflow-hidden mr-2">
@@ -811,7 +840,6 @@
         const progressContainer = fileItemElement.querySelector('.file-progress-container');
         const progressBar = fileItemElement.querySelector('.file-progress-bar');
         
-        // Spans are now styled in the initial HTML, just need to update content
         const progressPercentageSpan = fileItemElement.querySelector('.progress-percentage');
         const receivedSizeSpan = fileItemElement.querySelector('.received-size-text');
         const speedSpan = fileItemElement.querySelector('.speed-text');
@@ -826,7 +854,6 @@
             if (progressContainer) progressContainer.style.display = 'block';
             if (progressBar) { progressBar.value = 0; progressBar.classList.remove('completed'); }
             
-            // Reset to initial styled text
             if (progressPercentageSpan) progressPercentageSpan.textContent = '0%';
             if (receivedSizeSpan) receivedSizeSpan.textContent = '0 Bytes'; 
             if (speedSpan) speedSpan.textContent = 'Waiting...';
@@ -839,7 +866,7 @@
                 lastSpeedCalcTime: Date.now(), 
                 lastSpeedCalcBytes: 0,
                 lastReportedPercentage: 0,
-                initialRequestTime: Date.now() // Added for final speed calculation
+                initialRequestTime: Date.now() 
             };
         } else { 
             showMessage('receive', 'Not connected to sender. Please connect first.', 'error');
@@ -913,7 +940,7 @@
                 chunks: [], receivedSize: 0, totalSize: fileSize || 0, type: fileType || '', 
                 completed: false, cancelled: false,
                 lastSpeedCalcTime: Date.now(), lastSpeedCalcBytes: 0, lastReportedPercentage: 0,
-                initialRequestTime: Date.now() // Added for final speed calculation
+                initialRequestTime: Date.now() 
             };
             const progressContainer = fileItemElement.querySelector('.file-progress-container');
             if (progressContainer) progressContainer.style.display = 'block'; 
@@ -942,7 +969,7 @@
         }
         
         if (progressBar) progressBar.value = progress;
-        if(progressPercentageSpan) progressPercentageSpan.textContent = `${progress}%`; // Always update percentage
+        if(progressPercentageSpan) progressPercentageSpan.textContent = `${progress}%`;
 
         const currentTime = Date.now();
         const timeElapsedSeconds = (currentTime - fileData.lastSpeedCalcTime) / 1000;
@@ -978,7 +1005,6 @@
             else if (fileData.totalSize > 0 && fileData.receivedSize < fileData.totalSize) allChunksReceived = false;
 
             if (allChunksReceived && fileData.receivedSize >= (fileData.totalSize || 0) ) {
-                // Final update for received size and speed before "Downloaded!"
                 if(receivedSizeSpan) receivedSizeSpan.textContent = formatFileSize(fileData.receivedSize);
                 if(speedSpan) {
                     const finalTotalTimeSeconds = (Date.now() - fileData.initialRequestTime) / 1000;
