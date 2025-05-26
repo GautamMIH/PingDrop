@@ -204,6 +204,7 @@
 
     const CHUNK_SIZE = 64 * 1024; 
     const MAX_PARALLEL_SENDER_UPLOADS = 3; 
+    const FINAL_CANCEL_TIMEOUT = 3000; // ms to wait before finalizing "Cancelled" UI if no more stray chunks
 
     // DOM Elements
     const fileInput = document.getElementById('fileInput');
@@ -456,7 +457,7 @@
                 continue; 
             }
             
-            if (!uploadItem || ["cancelled", "error"].includes(uploadItem.dataset.status)) { 
+            if (!uploadItem || ["cancelled", "error", "cancelling"].includes(uploadItem.dataset.status)) { 
                 if (uploadItem) { 
                     console.log(`[SENDER QUEUE DEBUG] Re-using/resetting UI for ${escapedFileName} (previous status: ${uploadItem.dataset.status})`);
                 } else { 
@@ -562,23 +563,22 @@
             const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
             if (uploadItem) {
                 const statusP = uploadItem.querySelector('.upload-item-status');
-                // Show "Cancelling..." briefly
-                if (statusP) statusP.innerHTML = `<span class="text-yellow-600 font-medium"><i class="fas fa-spinner fa-spin mr-1"></i>Cancelling...</span>`;
-                uploadItem.dataset.status = "cancelling"; // Intermediate status
+                if (statusP && uploadItem.dataset.status !== "cancelled") { 
+                    statusP.innerHTML = `<span class="text-yellow-600 font-medium"><i class="fas fa-spinner fa-spin mr-1"></i>Cancelling...</span>`;
+                }
+                uploadItem.dataset.status = "cancelling"; 
 
                 setTimeout(() => {
-                    // Final "Cancelled" status after a short delay
-                    if (uploadItem.dataset.status === "cancelling") { // Check if not already removed or changed
+                    if (uploadItem.dataset.status === "cancelling") { 
                          uploadItem.dataset.status = "cancelled";
                          if (statusP) statusP.innerHTML = '<span class="text-yellow-600 font-medium">Cancelled by receiver</span>';
                          console.log(`[SENDER DEBUG] Status for ${escapedFileName} set to 'cancelled'.`);
                          setTimeout(() => { 
                             if(uploadItem.dataset.status === "cancelled") uploadItem.remove(); 
-                        }, 4000); // Keep "Cancelled" message for 4s then remove
+                        }, 4000); 
                     }
-                }, 1000); // Show "Cancelling..." for 1 second
+                }, 1000); 
             }
-            // Remove from queue if it was waiting
             senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer));
             console.log(`[SENDER DEBUG] Processed cancel-transfer for ${data.fileName}. Calling processSenderQueue for ${conn.peer}.`);
             processSenderQueue(conn); 
@@ -599,24 +599,22 @@
              console.error(`[SENDER sendFileInChunks] Critical: Upload item for ${file.name} not found at initiation. Aborting send.`);
             return;
         }
-        // Check status *before* first read
         if (uploadItem.dataset.status !== "sending") {
              console.log(`[SENDER sendFileInChunks] Initial status for ${file.name} is not 'sending' (${uploadItem.dataset.status}). Not starting.`);
             return;
         }
 
         function readNextChunk() {
-            if (uploadItem.dataset.status !== "sending") { // Check before each read
-                console.log(`[SENDER sendFileInChunks - readNextChunk] Sending for ${file.name} to ${conn.peer} HALTED. Status: ${uploadItem.dataset.status}.`);
+            if (uploadItem.dataset.status !== "sending") {
+                console.log(`[SENDER sendFileInChunks - readNextChunk] HALTED for ${file.name}. Status: ${uploadItem.dataset.status}.`);
                 reader.onload = null; 
                 reader.onerror = null;
                 return; 
             }
             if (offset >= totalFileSize || !conn.open ) {
-                console.log(`[SENDER sendFileInChunks - readNextChunk] Sending for ${file.name} to ${conn.peer} conditions met for halting/completion. Offset: ${offset}, ConnOpen: ${conn.open}.`);
+                console.log(`[SENDER sendFileInChunks - readNextChunk] Conditions met for halting/completion for ${file.name}. Offset: ${offset}, ConnOpen: ${conn.open}.`);
                 if (offset >= totalFileSize && conn.open && uploadItem.dataset.status === "sending") {
                     if (conn.open) conn.send({ type: 'transfer-end', name: file.name, success: true });
-                    console.log(`[SENDER sendFileInChunks - readNextChunk] Reached end of file for ${file.name}, sent transfer-end.`);
                 }
                 return; 
             }
@@ -625,8 +623,8 @@
         }
 
         reader.onload = (event) => {
-            if (uploadItem.dataset.status !== "sending") { // Check before send
-                console.log(`[SENDER sendFileInChunks - onload] Sending for ${file.name} to ${conn.peer} HALTED before send. Status: ${uploadItem.dataset.status}.`);
+            if (uploadItem.dataset.status !== "sending") {
+                console.log(`[SENDER sendFileInChunks - onload] HALTED before send for ${file.name}. Status: ${uploadItem.dataset.status}.`);
                 return; 
             }
             if (!conn.open) {
@@ -638,7 +636,6 @@
                 const chunkData = event.target.result;
                 const isLastChunk = (offset + chunkData.byteLength >= totalFileSize);
                 
-                // console.log(`[SENDER sendFileInChunks - onload] Attempting to send chunk ${chunkIndex} for ${file.name}. isLast: ${isLastChunk}`);
                 conn.send({
                     type: 'file-chunk', 
                     name: file.name,
@@ -653,7 +650,7 @@
                 chunkIndex++;
 
                 if (offset < totalFileSize) {
-                    if (uploadItem.dataset.status === "sending") { // Check before next read
+                    if (uploadItem.dataset.status === "sending") {
                         readNextChunk(); 
                     } else {
                          console.log(`[SENDER sendFileInChunks - onload] Status changed for ${file.name} after send, before next read. Halting further reads.`);
@@ -680,7 +677,7 @@
             processSenderQueue(conn);
         };
         
-        if (uploadItem.dataset.status === "sending") { // Final check before first read
+        if (uploadItem.dataset.status === "sending") {
             readNextChunk();
         } else {
             console.log(`[SENDER sendFileInChunks] Initial status for ${file.name} is not 'sending' (${uploadItem.dataset.status}). Not starting readNextChunk.`);
@@ -827,7 +824,7 @@
                 const fileItemElement = document.querySelector(`.file-item[data-filename="${escapeHTML(data.name)}"]`);
                 if (fileItemElement) {
                     const statusP = fileItemElement.querySelector('.file-status-text');
-                    if (statusP) statusP.innerHTML = `<span class="text-red-600 font-medium">Error from Sender</span>`;
+                    if (statusP) statusP.innerHTML = `<span class="text-red-500 font-medium">Error from Sender</span>`;
                     const downloadButton = fileItemElement.querySelector('.download-btn');
                     if (downloadButton) { downloadButton.disabled = false; downloadButton.style.display = 'inline-flex';}
                     const cancelButton = fileItemElement.querySelector('.cancel-btn');
@@ -1003,6 +1000,8 @@
                 completed: false, 
                 cancelled: false, 
                 senderFinishedSending: false,
+                ignoredChunksCount: 0, 
+                finalCancelTimer: null, 
                 lastSpeedCalcTime: Date.now(), 
                 lastSpeedCalcBytes: 0,
                 lastReportedPercentage: 0,
@@ -1025,33 +1024,64 @@
     function handleCancelDownload(fileName) {
         const escapedFileName = escapeHTML(fileName);
         console.log(`[RECEIVER DEBUG] handleCancelDownload initiated for ${escapedFileName}`);
-        showMessage('receive', `Cancelling download for '${escapedFileName}'...`, 'info');
+        
+        const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+        const fileData = fileChunksCollector[escapedFileName];
 
-        if (fileChunksCollector[escapedFileName]) {
+        if (fileData && fileData.finalCancelTimer) {
+            clearTimeout(fileData.finalCancelTimer); 
+            fileData.finalCancelTimer = null;
+        }
+        
+        if (fileItemElement) {
+            const statusP = fileItemElement.querySelector('.file-status-text');
+            if (statusP) { 
+                statusP.innerHTML = `<span class="text-yellow-600 font-medium"><i class="fas fa-spinner fa-spin mr-1"></i>Cancelling...</span>`;
+            }
+            const downloadButton = fileItemElement.querySelector('.download-btn');
+            const cancelButton = fileItemElement.querySelector('.cancel-btn');
+            if (cancelButton) cancelButton.style.display = 'none'; 
+            // Keep download button hidden/disabled until finalization
+        }
+
+        if (fileData) {
             console.log(`[RECEIVER DEBUG] Marking ${escapedFileName} as cancelled in collector.`);
-            fileChunksCollector[escapedFileName].cancelled = true;
+            fileData.cancelled = true;
+            fileData.ignoredChunksCount = 0; 
+            
+            fileData.finalCancelTimer = setTimeout(() => {
+                if (fileData.cancelled && fileItemElement) { 
+                    const currentStatusP = fileItemElement.querySelector('.file-status-text');
+                    if (currentStatusP && (currentStatusP.textContent.includes("Ignoring") || currentStatusP.textContent.includes("Cancelling"))) { 
+                        currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User (Ignored ${fileData.ignoredChunksCount} chunks)</span>`;
+                    } else if (currentStatusP && !currentStatusP.textContent.includes("Downloaded")) { // If not already downloaded
+                         currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User</span>`;
+                    }
+                    const downloadButton = fileItemElement.querySelector('.download-btn');
+                    if (downloadButton) {
+                        downloadButton.style.display = 'inline-flex';
+                        downloadButton.disabled = false;
+                    }
+                     const progressBar = fileItemElement.querySelector('.file-progress-bar');
+                    if(progressBar) progressBar.value = 0;
+                }
+            }, FINAL_CANCEL_TIMEOUT);
+
+        } else { 
+             if (fileItemElement) {
+                const statusP = fileItemElement.querySelector('.file-status-text');
+                if (statusP) statusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User</span>`;
+                const downloadButton = fileItemElement.querySelector('.download-btn');
+                if (downloadButton) {
+                    downloadButton.style.display = 'inline-flex';
+                    downloadButton.disabled = false;
+                }
+             }
         }
 
         if (currentConnection && currentConnection.open) {
             console.log(`[RECEIVER DEBUG] Sending 'cancel-transfer' message for ${escapedFileName} to sender.`);
             currentConnection.send({ type: 'cancel-transfer', fileName: fileName });
-        }
-
-        const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
-        if (fileItemElement) {
-            const downloadButton = fileItemElement.querySelector('.download-btn');
-            const cancelButton = fileItemElement.querySelector('.cancel-btn');
-            const progressContainer = fileItemElement.querySelector('.file-progress-container');
-            const statusP = fileItemElement.querySelector('.file-status-text');
-
-            if (statusP) statusP.innerHTML = `<span class="text-yellow-600 font-medium">Cancelled by User</span>`;
-            if (progressContainer) progressContainer.style.display = 'block'; 
-
-            if (downloadButton) {
-                 downloadButton.style.display = 'inline-flex'; 
-                 downloadButton.disabled = false;
-            }
-            if (cancelButton) cancelButton.style.display = 'none'; 
         }
         
         if (fileName === currentDownloadingFileReceiver) { 
@@ -1065,9 +1095,34 @@
     function processFileChunk(data) {
         const { name, chunk, chunkIndex, totalChunks, isLast, fileType, fileSize } = data;
         const escapedFileName = escapeHTML(name);
+        const fileData = fileChunksCollector[name];
 
-        if (fileChunksCollector[name] && fileChunksCollector[name].cancelled) {
-            console.log(`[RECEIVER processFileChunk DEBUG] Ignoring chunk for cancelled file: ${name}, chunkIndex: ${chunkIndex}`);
+        if (fileData && fileData.cancelled) {
+            fileData.ignoredChunksCount = (fileData.ignoredChunksCount || 0) + 1;
+            const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+            if (fileItemElement) {
+                const statusP = fileItemElement.querySelector('.file-status-text');
+                if (statusP) {
+                    statusP.innerHTML = `<span class="text-yellow-600 font-medium">Cancelled. Ignored ${fileData.ignoredChunksCount} chunks.</span>`;
+                }
+                if (fileData.finalCancelTimer) clearTimeout(fileData.finalCancelTimer);
+                fileData.finalCancelTimer = setTimeout(() => {
+                    if (fileData.cancelled && fileItemElement) {
+                        const currentStatusP = fileItemElement.querySelector('.file-status-text');
+                        if (currentStatusP && currentStatusP.textContent.includes("Ignored")) { 
+                            currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User (Ignored ${fileData.ignoredChunksCount} chunks)</span>`;
+                        }
+                        const downloadButton = fileItemElement.querySelector('.download-btn');
+                        if (downloadButton) {
+                            downloadButton.style.display = 'inline-flex';
+                            downloadButton.disabled = false;
+                        }
+                        const progressBar = fileItemElement.querySelector('.file-progress-bar');
+                        if(progressBar) progressBar.value = 0;
+                    }
+                }, FINAL_CANCEL_TIMEOUT);
+            }
+            console.log(`[RECEIVER processFileChunk DEBUG] Ignoring chunk ${chunkIndex !== undefined ? chunkIndex : 'N/A'} for cancelled file: ${name}. Total ignored: ${fileData.ignoredChunksCount}`);
             return; 
         }
 
@@ -1083,17 +1138,11 @@
         const receivedSizeSpan = fileItemElement.querySelector('.received-size-text');
         const speedSpan = fileItemElement.querySelector('.speed-text');
     
-        if (!fileChunksCollector[name]) {
-             console.warn(`[RECEIVER DEBUG] processFileChunk: Collector for ${name} not found. Initializing.`);
-             fileChunksCollector[name] = { 
-                chunks: [], receivedSize: 0, totalSize: fileSize || 0, fileType: fileType || '', 
-                completed: false, cancelled: false, senderFinishedSending: false,
-                lastSpeedCalcTime: Date.now(), lastSpeedCalcBytes: 0, lastReportedPercentage: 0,
-                initialRequestTime: Date.now() 
-            };
+        if (!fileData) { 
+             console.warn(`[RECEIVER DEBUG] processFileChunk: Collector for ${name} not found. This should not happen if request was made.`);
+             return; 
         }
     
-        const fileData = fileChunksCollector[name];
         if (fileData.completed) { 
             console.log(`[RECEIVER DEBUG] File ${name} already completed. Ignoring chunk ${chunkIndex}.`);
             return;
@@ -1172,7 +1221,7 @@
                     console.error(`[RECEIVER DEBUG] Critical assembly error: Missing chunk ${i} for ${name} despite isLast flag and size match.`);
                     showMessage('receive', `Error assembling file '${escapedFileName}'. Missing data.`, 'error');
                     const statusP_err = fileItemElement.querySelector('.file-status-text');
-                    if(statusP_err) statusP_err.innerHTML = `<span class="text-red-600 font-medium">Assembly Error - Missing Chunks</span>`;
+                    if(statusP_err) statusP_err.innerHTML = `<span class="text-red-500 font-medium">Assembly Error - Missing Chunks</span>`;
                     if (name === currentDownloadingFileReceiver) currentDownloadingFileReceiver = null;
                     processReceiverDownloadQueue();
                     return; 
