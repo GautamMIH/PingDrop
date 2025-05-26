@@ -43,12 +43,44 @@
         .modal-content-area::-webkit-scrollbar {
             display: none; 
         }
+
+        /* Toast Notification Styles */
+        #toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #22c55e; /* Green-500 */
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            max-width: 300px;
+            word-wrap: break-word;
+        }
+        #toast-notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        #toast-notification.error {
+            background-color: #ef4444; /* Red-500 */
+        }
+        #toast-notification.info {
+            background-color: #3b82f6; /* Blue-500 */
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="text-gray-800">
+
+    <div id="toast-notification">
+        <span id="toast-message"></span>
+    </div>
 
     <header class="bg-white shadow-sm sticky top-0 z-40"> 
         <nav class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
@@ -228,6 +260,7 @@
     const MAX_PARALLEL_SENDER_UPLOADS = 4; 
     const FINAL_CANCEL_TIMEOUT = 3000;
     const IGNORED_CHUNK_UI_UPDATE_THROTTLE_MS = 250;
+    const TOAST_VISIBILITY_DURATION_MS = 4000;
 
     const fileInput = document.getElementById('fileInput');
     const selectedFilesList = document.getElementById('selected-files-list');
@@ -249,6 +282,11 @@
     const openFileShareModalBtn = document.getElementById('openFileShareModalBtn');
     const fileShareModal = document.getElementById('fileShareModal');
     const closeFileShareModalBtn = document.getElementById('closeFileShareModalBtn');
+
+    const toastNotificationElement = document.getElementById('toast-notification');
+    const toastMessageElement = document.getElementById('toast-message');
+    let toastTimeoutId = null;
+
 
     let selectedFiles = []; 
     let peer = null; 
@@ -301,7 +339,7 @@
 
     function showMessage(tab, text, type = 'info') {
         const box = tab === 'send' ? messageBoxSend : messageBoxReceive; 
-        if (!box) { console.error(`showMessage: Message box for tab '${tab}' not found. Text: ${text}`); return; }
+        if (!box) { return; }
         box.textContent = text;
         box.className = 'mt-4 p-3 rounded-md text-sm'; 
         if (type === 'success') box.classList.add('bg-green-100', 'text-green-700');
@@ -309,6 +347,32 @@
         else box.classList.add('bg-blue-100', 'text-blue-700');
         box.style.display = 'block';
         setTimeout(() => { if(box) box.style.display = 'none'; }, 7000);
+    }
+
+    function showToastNotification(message, type = 'success') {
+        if (!toastNotificationElement || !toastMessageElement) return;
+
+        toastMessageElement.textContent = message;
+        toastNotificationElement.className = ''; // Reset classes
+        toastNotificationElement.classList.add('show');
+
+        if (type === 'error') {
+            toastNotificationElement.classList.add('error');
+        } else if (type === 'info') {
+            toastNotificationElement.classList.add('info');
+        } else {
+            // Default to success, no extra class needed if base is success color
+             toastNotificationElement.style.backgroundColor = '#22c55e'; // Explicitly set for default success
+        }
+
+
+        if (toastTimeoutId) {
+            clearTimeout(toastTimeoutId);
+        }
+
+        toastTimeoutId = setTimeout(() => {
+            toastNotificationElement.classList.remove('show');
+        }, TOAST_VISIBILITY_DURATION_MS);
     }
     
     function openTab(event, tabName) {
@@ -509,24 +573,14 @@
     }
 
     function handleReceiverData(data) {
-        console.log('[RECEIVER] handleReceiverData invoked. Data received:', JSON.parse(JSON.stringify(data)));
         if (data.type === 'file-list') {
-            console.log('[RECEIVER] Processing file-list type.');
-            console.log('[RECEIVER] receivedFilesList element:', receivedFilesList);
-            console.log('[RECEIVER] downloadModeSelector element:', downloadModeSelector);
-            console.log('[RECEIVER] downloadAllContainer element:', downloadAllContainer);
-            console.log('[RECEIVER] data.files:', data.files ? JSON.parse(JSON.stringify(data.files)) : 'undefined');
-
-
             if(receivedFilesList) receivedFilesList.innerHTML = ''; 
             receiverDownloadQueue = []; 
             currentDownloadingFileReceiver = null;
             fileChunksCollector = {}; 
 
             if (data.files && data.files.length > 0) {
-                console.log(`[RECEIVER] Found ${data.files.length} file(s) in file-list.`);
                 data.files.forEach(file => {
-                    console.log('[RECEIVER] Creating UI for file:', file.name);
                     const escapedFileName = escapeHTML(file.name);
                     const item = document.createElement('div');
                     item.className = 'file-item p-3 bg-gray-100 rounded-lg shadow-sm'; 
@@ -561,10 +615,7 @@
                         </div>`;
                     if(receivedFilesList) {
                         receivedFilesList.appendChild(item);
-                        console.log('[RECEIVER] Appended file item to receivedFilesList for:', file.name);
-                    } else {
-                        console.error('[RECEIVER] receivedFilesList is null, cannot append file item.');
-                    }
+                    } 
                     item.querySelector('.download-btn').addEventListener('click', function() {
                         requestFileFromServer(this.dataset.filename);
                     });
@@ -574,18 +625,11 @@
                 });
                 if (downloadModeSelector) {
                     downloadModeSelector.style.display = 'block';
-                    console.log('[RECEIVER] downloadModeSelector displayed.');
-                } else {
-                     console.error('[RECEIVER] downloadModeSelector is null.');
-                }
+                } 
                 if (downloadAllContainer) {
                     downloadAllContainer.style.display = 'block';
-                    console.log('[RECEIVER] downloadAllContainer displayed.');
-                } else {
-                    console.error('[RECEIVER] downloadAllContainer is null.');
-                }
+                } 
             } else { 
-                console.log('[RECEIVER] No files in file-list or data.files is empty/null.');
                 if (downloadModeSelector) downloadModeSelector.style.display = 'none';
                 if (downloadAllContainer) downloadAllContainer.style.display = 'none';
                 showMessage('receive', 'Sender has no files to share at the moment.', 'info');
@@ -1040,7 +1084,9 @@
 
             const completeFileBlob = new Blob(assembledChunks, { type: fileData.fileType || 'application/octet-stream' });
             triggerDownload(completeFileBlob, name);
-            showMessage('receive', `'${escapedFileName}' downloaded successfully!`, 'success');
+            
+            // Show toast notification instead of modal message for successful download
+            showToastNotification(`'${escapedFileName}' downloaded successfully!`, 'success');
             
             const statusP = fileItemElement.querySelector('.file-status-text');
             if(progressBar) progressBar.classList.add('completed');
@@ -1131,16 +1177,13 @@
         const currentSenderActiveUploadsContainer = fileShareModal.querySelector('#sender-active-uploads-container');
 
         currentPeerInstance.on('connection', (conn) => {
-            console.log('[SENDER] Peer attempting to connect:', conn.peer);
-            showMessage('send', `Peer ${conn.peer} attempting to connect.`, 'info');
             currentConnection = conn; 
             senderFileRequestQueue = []; 
             if (currentSenderActiveUploadsContainer) currentSenderActiveUploadsContainer.innerHTML = ''; 
             
             conn.on('open', () => { 
-                console.log('[SENDER] Connection opened with peer:', conn.peer);
                 showMessage('send', `Peer ${conn.peer} connected. Sending file list.`, 'success'); 
-                sendFileList(conn); 
+                sendFileList(currentConnection); 
             });
             conn.on('data', (data) => handleSenderDataMODAL(conn, data)); 
             conn.on('close', () => {
@@ -1178,15 +1221,12 @@
     }
 
     function sendFileList(conn) {
-        console.log('[SENDER] sendFileList called. selectedFiles count:', selectedFiles.length, 'Selected Files:', JSON.parse(JSON.stringify(selectedFiles.map(f => ({name: f.name, size: f.size})))));
         const fileMetadata = selectedFiles.map(file => ({ name: file.name, size: file.size, type: file.type }));
         if (conn && conn.open) {
             conn.send({ type: 'file-list', files: fileMetadata });
             showMessage('send', `Sent file list (${fileMetadata.length} files) to peer.`, 'info');
-            console.log('[SENDER] File list sent:', fileMetadata);
         } else {
             showMessage('send', 'Could not send file list: connection not open.', 'error');
-            console.error('[SENDER] Could not send file list: connection not open or invalid.', conn);
         }
     }
 
