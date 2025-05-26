@@ -203,8 +203,9 @@
     // --- PeerJS P2P Logic & UI Interaction Script ---
 
     const CHUNK_SIZE = 64 * 1024; 
-    const MAX_PARALLEL_SENDER_UPLOADS = 3; 
-    const FINAL_CANCEL_TIMEOUT = 3000; // ms to wait before finalizing "Cancelled" UI if no more stray chunks
+    const MAX_PARALLEL_SENDER_UPLOADS = 4; 
+    const FINAL_CANCEL_TIMEOUT = 3000; // ms to wait before finalizing "Cancelled" UI
+    const IGNORED_CHUNK_UI_UPDATE_THROTTLE_MS = 250; // ms to throttle UI updates for ignored chunks
 
     // DOM Elements
     const fileInput = document.getElementById('fileInput');
@@ -453,7 +454,7 @@
             if (uploadItem && (uploadItem.dataset.status === "sending" || uploadItem.dataset.status === "complete")) {
                 console.warn(`[SENDER QUEUE DEBUG] File ${escapedFileName} for ${conn.peer} is already sending or complete. Skipping re-initiation.`);
                 activeUploadsCount = Array.from(senderActiveUploadsContainer.children) 
-                    .filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length; // Re-evaluate count
+                    .filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length; 
                 continue; 
             }
             
@@ -752,17 +753,19 @@
         document.querySelectorAll('.file-progress-container').forEach(el => el.style.display = 'none');
 
         if (currentConnection) { currentConnection.close(); currentConnection = null; }
-        if(peer) { peer.destroy(); peer = null; }
+        if(peer && !peer.destroyed) { peer.destroy(); peer = null; }
         receiverDownloadQueue = [];
         currentDownloadingFileReceiver = null;
+        fileChunksCollector = {}; 
     }
 
     function handleReceiverData(data) {
-        console.log(`[RECEIVER] Received data:`, data.type, data.fileName || '');
+        console.log(`[RECEIVER] Received data:`, data.type, data.fileName || data.name || '');
         if (data.type === 'file-list') {
             receivedFilesList.innerHTML = ''; 
             receiverDownloadQueue = []; 
             currentDownloadingFileReceiver = null;
+            fileChunksCollector = {}; 
 
             if (data.files && data.files.length > 0) {
                 data.files.forEach(file => {
@@ -841,7 +844,14 @@
                     fileData.senderFinishedSending = true; 
                     if (fileData.receivedSize >= fileData.totalSize && fileData.totalSize > 0) {
                         console.log(`[RECEIVER DEBUG] Sender finished, and all bytes seem received for ${data.name}. Triggering final check via dummy processFileChunk.`);
-                        processFileChunk({ name: data.name, isLast: true, totalChunks: Math.ceil(fileData.totalSize / CHUNK_SIZE), chunkIndex: Math.ceil(fileData.totalSize / CHUNK_SIZE) -1 });
+                        processFileChunk({ 
+                            name: data.name, 
+                            isLast: true, 
+                            totalChunks: fileData.totalChunksCount || Math.ceil(fileData.totalSize / CHUNK_SIZE), 
+                            chunkIndex: (fileData.totalChunksCount || Math.ceil(fileData.totalSize / CHUNK_SIZE)) -1,
+                            fileSize: fileData.totalSize, 
+                            fileType: fileData.fileType
+                        });
                     }
                 }
             }
@@ -911,9 +921,8 @@
                 requestFileFromServer(nextFileToDownload);
             } else if (receiverDownloadQueue.length === 0 && currentDownloadingFileReceiver === null) {
                 console.log('[RECEIVER QUEUE DEBUG - Sequential] All sequential downloads processed.');
-                showMessage('receive', 'All sequential downloads processed.', 'info');
             }
-        } else { // Parallel mode
+        } else { 
             let activeReceiverDownloads = 0;
             document.querySelectorAll('#received-files-list .file-item').forEach(item => {
                 const progressContainer = item.querySelector('.file-progress-container');
@@ -945,7 +954,6 @@
         }
     }
 
-
     function requestFileFromServer(fileName) {
         console.log(`[RECEIVER requestFileFromServer] Called for: ${fileName}`);
         const fileItemElement = document.querySelector(`.file-item[data-filename="${escapeHTML(fileName)}"]`);
@@ -968,7 +976,6 @@
         const speedSpan = fileItemElement.querySelector('.speed-text');
         const totalSizeTextSpan = fileItemElement.querySelector('.total-size-text');
 
-
         if (currentConnection && currentConnection.open) {
             if (fileChunksCollector[fileName] && !fileChunksCollector[fileName].completed && !fileChunksCollector[fileName].cancelled && 
                 progressContainer.style.display === 'block' && (downloadButton.style.display === 'none' || downloadButton.disabled)) {
@@ -985,7 +992,6 @@
             if(totalSizeTextSpan && fileItemTotalSizeText) totalSizeTextSpan.textContent = fileItemTotalSizeText;
             else if (totalSizeTextSpan) totalSizeTextSpan.textContent = "N/A";
 
-
             if (receivedSizeSpan) receivedSizeSpan.textContent = '0 Bytes'; 
             if (speedSpan) speedSpan.textContent = 'Starting...';
             
@@ -996,6 +1002,7 @@
                 chunks: [], 
                 receivedSize: 0, 
                 totalSize: 0, 
+                totalChunksCount: 0, 
                 fileType: '', 
                 completed: false, 
                 cancelled: false, 
@@ -1005,7 +1012,10 @@
                 lastSpeedCalcTime: Date.now(), 
                 lastSpeedCalcBytes: 0,
                 lastReportedPercentage: 0,
-                initialRequestTime: Date.now() 
+                initialRequestTime: Date.now(),
+                receivedSizeAtCancellationPoint: 0, 
+                totalChunksAtCancellationPoint: 0,
+                lastIgnoredChunkUIUpdateTime: 0, // For throttling ignored chunk UI updates
             };
             
             console.log(`[RECEIVER requestFileFromServer] Sending 'request-file' message for: ${fileName}`);
@@ -1019,6 +1029,23 @@
             }
             processReceiverDownloadQueue(); 
          }
+    }
+    
+    function getRemainingChunksForDisplay(fileData) {
+        const totalChunksKnownAtCancel = fileData.totalChunksAtCancellationPoint; 
+        const receivedChunksAtCancel = Math.ceil((fileData.receivedSizeAtCancellationPoint || 0) / CHUNK_SIZE);
+
+        let effectiveTotalChunks = totalChunksKnownAtCancel;
+        if (effectiveTotalChunks === 0 || effectiveTotalChunks === '?') {
+            effectiveTotalChunks = fileData.totalChunksCount > 0 ? fileData.totalChunksCount :
+                                  (fileData.totalSize > 0 ? Math.ceil(fileData.totalSize / CHUNK_SIZE) : 0);
+        }
+
+        if (effectiveTotalChunks === 0 || effectiveTotalChunks === '?') {
+            return '?'; 
+        }
+        
+        return Math.max(0, effectiveTotalChunks - receivedChunksAtCancel);
     }
 
     function handleCancelDownload(fileName) {
@@ -1038,24 +1065,28 @@
             if (statusP) { 
                 statusP.innerHTML = `<span class="text-yellow-600 font-medium"><i class="fas fa-spinner fa-spin mr-1"></i>Cancelling...</span>`;
             }
-            const downloadButton = fileItemElement.querySelector('.download-btn');
             const cancelButton = fileItemElement.querySelector('.cancel-btn');
             if (cancelButton) cancelButton.style.display = 'none'; 
-            // Keep download button hidden/disabled until finalization
         }
 
         if (fileData) {
             console.log(`[RECEIVER DEBUG] Marking ${escapedFileName} as cancelled in collector.`);
             fileData.cancelled = true;
-            fileData.ignoredChunksCount = 0; 
+            fileData.receivedSizeAtCancellationPoint = fileData.receivedSize;
+            fileData.totalChunksAtCancellationPoint = fileData.totalChunksCount > 0 ? fileData.totalChunksCount :
+                                                      (fileData.totalSize > 0 ? Math.ceil(fileData.totalSize / CHUNK_SIZE) : 0);
             
             fileData.finalCancelTimer = setTimeout(() => {
                 if (fileData.cancelled && fileItemElement) { 
                     const currentStatusP = fileItemElement.querySelector('.file-status-text');
-                    if (currentStatusP && (currentStatusP.textContent.includes("Ignoring") || currentStatusP.textContent.includes("Cancelling"))) { 
-                        currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User (Ignored ${fileData.ignoredChunksCount} chunks)</span>`;
-                    } else if (currentStatusP && !currentStatusP.textContent.includes("Downloaded")) { // If not already downloaded
-                         currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User</span>`;
+                    if (currentStatusP) {
+                        const finalRemainingChunksStr = getRemainingChunksForDisplay(fileData);
+                        const currentText = currentStatusP.textContent || "";
+                        if (currentText.includes("Ignored") || currentText.includes("Cancelling") || currentText.includes("Waiting") || currentText.includes("Starting") || currentText.includes("0%")) {
+                            currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User (Ignored ${fileData.ignoredChunksCount} / ${finalRemainingChunksStr} chunks)</span>`;
+                        } else if (!currentText.includes("Downloaded") && !currentText.includes("Cancelled by User")) {
+                            currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User</span>`;
+                        }
                     }
                     const downloadButton = fileItemElement.querySelector('.download-btn');
                     if (downloadButton) {
@@ -1097,31 +1128,58 @@
         const escapedFileName = escapeHTML(name);
         const fileData = fileChunksCollector[name];
 
-        if (fileData && fileData.cancelled) {
+        if (!fileData) { 
+             console.warn(`[RECEIVER DEBUG] processFileChunk: Collector for ${name} not found. Ignored.`);
+             return; 
+        }
+
+        if (fileData.totalSize === 0 && fileSize > 0) {
+            fileData.totalSize = fileSize;
+        }
+        if ((!fileData.totalChunksCount || fileData.totalChunksCount === 0) && totalChunks > 0) {
+            fileData.totalChunksCount = totalChunks;
+        }
+
+        if (fileData.cancelled) {
             fileData.ignoredChunksCount = (fileData.ignoredChunksCount || 0) + 1;
-            const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
-            if (fileItemElement) {
-                const statusP = fileItemElement.querySelector('.file-status-text');
-                if (statusP) {
-                    statusP.innerHTML = `<span class="text-yellow-600 font-medium">Cancelled. Ignored ${fileData.ignoredChunksCount} chunks.</span>`;
-                }
-                if (fileData.finalCancelTimer) clearTimeout(fileData.finalCancelTimer);
-                fileData.finalCancelTimer = setTimeout(() => {
-                    if (fileData.cancelled && fileItemElement) {
-                        const currentStatusP = fileItemElement.querySelector('.file-status-text');
-                        if (currentStatusP && currentStatusP.textContent.includes("Ignored")) { 
-                            currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User (Ignored ${fileData.ignoredChunksCount} chunks)</span>`;
-                        }
-                        const downloadButton = fileItemElement.querySelector('.download-btn');
-                        if (downloadButton) {
-                            downloadButton.style.display = 'inline-flex';
-                            downloadButton.disabled = false;
-                        }
-                        const progressBar = fileItemElement.querySelector('.file-progress-bar');
-                        if(progressBar) progressBar.value = 0;
+            const now = Date.now();
+
+            if (fileData.ignoredChunksCount === 1 || now - (fileData.lastIgnoredChunkUIUpdateTime || 0) > IGNORED_CHUNK_UI_UPDATE_THROTTLE_MS ) {
+                const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+                if (fileItemElement) {
+                    const statusP = fileItemElement.querySelector('.file-status-text');
+                    if (statusP) {
+                        const remainingChunksStr = getRemainingChunksForDisplay(fileData);
+                        statusP.innerHTML = `<span class="text-yellow-600 font-medium">Cancelled. Ignored ${fileData.ignoredChunksCount} / ${remainingChunksStr} chunks.</span>`;
                     }
-                }, FINAL_CANCEL_TIMEOUT);
+                }
+                fileData.lastIgnoredChunkUIUpdateTime = now;
             }
+
+            if (fileData.finalCancelTimer) clearTimeout(fileData.finalCancelTimer);
+            fileData.finalCancelTimer = setTimeout(() => {
+                const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+                if (fileData.cancelled && fileItemElement) { 
+                    const currentStatusP = fileItemElement.querySelector('.file-status-text');
+                     if (currentStatusP) {
+                        const finalRemainingChunksStr = getRemainingChunksForDisplay(fileData);
+                        const currentText = currentStatusP.textContent || "";
+                        if (currentText.includes("Ignored") || currentText.includes("Cancelling") || currentText.includes("Waiting") || currentText.includes("Starting") || currentText.includes("0%")) {
+                            currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User (Ignored ${fileData.ignoredChunksCount} / ${finalRemainingChunksStr} chunks)</span>`;
+                        } else if (!currentText.includes("Downloaded") && !currentText.includes("Cancelled by User")) {
+                            currentStatusP.innerHTML = `<span class="text-red-500 font-medium">Cancelled by User</span>`;
+                        }
+                    }
+                    const downloadButton = fileItemElement.querySelector('.download-btn');
+                    if (downloadButton) {
+                        downloadButton.style.display = 'inline-flex';
+                        downloadButton.disabled = false;
+                    }
+                    const progressBar = fileItemElement.querySelector('.file-progress-bar');
+                    if(progressBar) progressBar.value = 0;
+                }
+            }, FINAL_CANCEL_TIMEOUT);
+
             console.log(`[RECEIVER processFileChunk DEBUG] Ignoring chunk ${chunkIndex !== undefined ? chunkIndex : 'N/A'} for cancelled file: ${name}. Total ignored: ${fileData.ignoredChunksCount}`);
             return; 
         }
@@ -1138,11 +1196,6 @@
         const receivedSizeSpan = fileItemElement.querySelector('.received-size-text');
         const speedSpan = fileItemElement.querySelector('.speed-text');
     
-        if (!fileData) { 
-             console.warn(`[RECEIVER DEBUG] processFileChunk: Collector for ${name} not found. This should not happen if request was made.`);
-             return; 
-        }
-    
         if (fileData.completed) { 
             console.log(`[RECEIVER DEBUG] File ${name} already completed. Ignoring chunk ${chunkIndex}.`);
             return;
@@ -1152,21 +1205,26 @@
             fileData.totalSize = fileSize;
             if (totalSizeTextSpan) totalSizeTextSpan.textContent = formatFileSize(fileSize);
         }
+        if ((!fileData.totalChunksCount || fileData.totalChunksCount === 0) && totalChunks > 0) {
+             fileData.totalChunksCount = totalChunks;
+        }
         if(!fileData.fileType && fileType) fileData.fileType = fileType;
         
-        if (chunk) { 
+        if (chunk && chunkIndex !== undefined) { 
             fileData.chunks[chunkIndex] = chunk; 
             fileData.receivedSize += chunk.byteLength;
-        } else if (!isLast) { 
-            console.warn(`[RECEIVER DEBUG] Received chunk message for ${name} without chunk data and not isLast.`);
-            return;
+        } else if (!isLast && chunkIndex !== undefined) { 
+            console.warn(`[RECEIVER DEBUG] Received chunk message for ${name} (index ${chunkIndex}) without chunk data and not isLast.`);
+        } else if (!isLast && chunkIndex === undefined) { 
+             console.warn(`[RECEIVER DEBUG] Received incomplete chunk message for ${name}. Ignoring.`);
+             return;
         }
     
         let overallProgress = 0;
         if (fileData.totalSize > 0) {
             overallProgress = Math.min(100, Math.round((fileData.receivedSize / fileData.totalSize) * 100));
-        } else if (totalChunks > 0 && chunkIndex !== undefined) { 
-             overallProgress = Math.min(100, Math.round(((chunkIndex + 1) / totalChunks) * 100));
+        } else if (fileData.totalChunksCount > 0 && chunkIndex !== undefined) { 
+             overallProgress = Math.min(100, Math.round(((chunkIndex + 1) / fileData.totalChunksCount) * 100));
         }
     
         if (progressBar) progressBar.value = overallProgress;
@@ -1197,31 +1255,42 @@
             }
         }
     
-        if (isLast && fileData.receivedSize >= fileData.totalSize && fileData.totalSize > 0) {
+        if ((isLast || fileData.senderFinishedSending) && fileData.receivedSize >= fileData.totalSize && fileData.totalSize > 0) {
             if (fileData.completed) return; 
             
+            const expectedTotalChunks = fileData.totalChunksCount > 0 ? fileData.totalChunksCount : Math.ceil(fileData.totalSize / CHUNK_SIZE);
             let allChunksPresent = true;
-            const expectedTotalChunks = Math.ceil(fileData.totalSize / CHUNK_SIZE); 
             for(let i = 0; i < expectedTotalChunks; i++) { 
                 if(!fileData.chunks[i]) {
                     allChunksPresent = false;
-                    console.warn(`[RECEIVER DEBUG] Missing chunk ${i} (expected ${expectedTotalChunks}) for file ${name} at completion check.`);
-                    break;
+                    console.warn(`[RECEIVER DEBUG] Missing chunk ${i} for file ${name} at completion check.`);
                 }
             }
 
+            if (!allChunksPresent && (isLast || fileData.senderFinishedSending)) {
+                console.error(`[RECEIVER DEBUG] Critical: File ${name} marked for completion, but not all chunks are present. Aborting assembly.`);
+                showMessage('receive', `Error assembling file '${escapedFileName}'. Missing chunk data.`, 'error');
+                const statusP_err = fileItemElement.querySelector('.file-status-text');
+                if(statusP_err) statusP_err.innerHTML = `<span class="text-red-500 font-medium">Assembly Error - Data Missing</span>`;
+                fileData.completed = false; 
+                fileData.cancelled = true; 
+                if (name === currentDownloadingFileReceiver) currentDownloadingFileReceiver = null;
+                processReceiverDownloadQueue();
+                return;
+            }
+
             fileData.completed = true; 
-            console.log(`[RECEIVER DEBUG] 'isLast' received for ${name} and all bytes received. Assembling file.`);
+            console.log(`[RECEIVER DEBUG] Conditions met for completing ${name}. Assembling file.`);
             
             const assembledChunks = [];
             for(let i = 0; i < expectedTotalChunks; i++){ 
                 if(fileData.chunks[i]){
                     assembledChunks.push(fileData.chunks[i]);
                 } else {
-                    console.error(`[RECEIVER DEBUG] Critical assembly error: Missing chunk ${i} for ${name} despite isLast flag and size match.`);
-                    showMessage('receive', `Error assembling file '${escapedFileName}'. Missing data.`, 'error');
+                    console.error(`[RECEIVER DEBUG] Critical assembly error: Missing chunk ${i} for ${name} during final assembly loop.`);
+                    showMessage('receive', `Error assembling file '${escapedFileName}'. Missing data (loop).`, 'error');
                     const statusP_err = fileItemElement.querySelector('.file-status-text');
-                    if(statusP_err) statusP_err.innerHTML = `<span class="text-red-500 font-medium">Assembly Error - Missing Chunks</span>`;
+                    if(statusP_err) statusP_err.innerHTML = `<span class="text-red-500 font-medium">Assembly Error - Missing (Loop)</span>`;
                     if (name === currentDownloadingFileReceiver) currentDownloadingFileReceiver = null;
                     processReceiverDownloadQueue();
                     return; 
@@ -1232,7 +1301,7 @@
             if(speedSpan) {
                 const finalTotalTimeSeconds = (Date.now() - fileData.initialRequestTime) / 1000;
                 const overallSpeed = finalTotalTimeSeconds > 0 ? fileData.receivedSize / finalTotalTimeSeconds : 0;
-                speedSpan.textContent = formatSpeed(overallSpeed);
+                speedSpan.textContent = `Avg. ${formatSpeed(overallSpeed)}`;
             }
 
             const completeFileBlob = new Blob(assembledChunks, { type: fileData.fileType || 'application/octet-stream' });
@@ -1263,9 +1332,8 @@
             }
             console.log(`[RECEIVER DEBUG] File ${name} completed. Calling processReceiverDownloadQueue.`);
             processReceiverDownloadQueue(); 
-        } else if (isLast && fileData.receivedSize < fileData.totalSize) {
-            console.warn(`[RECEIVER DEBUG] 'isLast' received for ${name}, but receivedSize (${fileData.receivedSize}) < totalSize (${fileData.totalSize}). Waiting for more chunks or transfer-end.`);
-            fileData.senderMarkedLastChunk = true; 
+        } else if ((isLast || fileData.senderFinishedSending) && fileData.receivedSize < fileData.totalSize) {
+            console.warn(`[RECEIVER DEBUG] End signal for ${name}, but receivedSize (${fileData.receivedSize}) < totalSize (${fileData.totalSize}).`);
         }
     }
 
@@ -1274,10 +1342,10 @@
         const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
-        document.body.appendChild(a);
+        document.body.appendChild(a); 
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        document.body.removeChild(a); 
+        URL.revokeObjectURL(url); 
     }
 
     window.addEventListener('load', () => {
@@ -1290,7 +1358,6 @@
             showMessage('receive', `Sender ID detected from URL. Click 'Connect to Sender' to proceed.`, 'info');
         }
     });
-
 
     window.addEventListener('beforeunload', () => {
         if (peer) { peer.destroy(); peer = null; }
