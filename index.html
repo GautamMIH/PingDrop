@@ -10,7 +10,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc; /* Tailwind's gray-50 */
+            background-color: #f8fafc; 
         }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
@@ -31,7 +31,18 @@
         progress.completed::-moz-progress-bar { background-color: #22c55e; }
         .btn i { margin-right: 0.5rem; }
         .file-item .file-progress-container { margin-top: 0.5rem; } 
-        .upload-item { margin-bottom: 0.75rem; } 
+        .upload-item { margin-bottom: 0.75rem; }
+
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        .modal-content-area {
+             -ms-overflow-style: none;  
+            scrollbar-width: none;  
+        }
+        .modal-content-area::-webkit-scrollbar {
+            display: none; 
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,13 +50,13 @@
 </head>
 <body class="text-gray-800">
 
-    <header class="bg-white shadow-sm sticky top-0 z-50">
+    <header class="bg-white shadow-sm sticky top-0 z-40"> 
         <nav class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-2">
                 <i class="fas fa-paper-plane text-2xl text-blue-600"></i> <span class="text-2xl font-bold text-gray-800">PingDrop</span>
             </div>
             <div class="hidden md:flex space-x-6">
-                <a href="#home" class="text-gray-600 hover:text-blue-600 transition duration-150">Home</a>
+                <a href="#home-section" class="text-gray-600 hover:text-blue-600 transition duration-150">Home</a>
                 <a href="#how-it-works" class="text-gray-600 hover:text-blue-600 transition duration-150">How it Works</a>
                 <a href="#faq" class="text-gray-600 hover:text-blue-600 transition duration-150">FAQ</a>
             </div>
@@ -54,89 +65,102 @@
             </button>
         </nav>
         <div id="mobileMenu" class="md:hidden hidden bg-white shadow-lg py-2">
-            <a href="#home" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">Home</a>
+            <a href="#home-section" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">Home</a>
             <a href="#how-it-works" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">How it Works</a>
             <a href="#faq" class="block px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition duration-150">FAQ</a>
         </div>
     </header>
 
     <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <section id="home" class="text-center py-12 md:py-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-xl text-white">
+        <section id="home-section" class="text-center py-12 md:py-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-xl text-white">
             <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold mb-6">Share Files Directly, Peer to Peer.</h1>
             <p class="text-lg sm:text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
                 Securely transfer files of any size without uploading to a central server. Fast, private, and simple with PingDrop.
             </p>
-            <a href="#file-sharing-area" class="btn bg-white text-blue-600 hover:bg-blue-50 font-semibold py-3 px-8 rounded-lg shadow-md transition duration-150 text-lg">
+            <button id="openFileShareModalBtn" class="btn bg-white text-blue-600 hover:bg-blue-50 font-semibold py-3 px-8 rounded-lg shadow-md transition duration-150 text-lg">
                 <i class="fas fa-rocket"></i> Get Started
-            </a>
+            </button>
         </section>
 
-        <section id="file-sharing-area" class="mt-12 md:mt-16 bg-white p-6 sm:p-8 rounded-xl shadow-xl">
-            <h2 class="text-2xl sm:text-3xl font-semibold text-center text-gray-800 mb-8">
-                Send or Receive Files
-            </h2>
-            <div class="flex border-b border-gray-200 mb-6 justify-center">
-                <button class="tab-link active text-blue-600 border-b-2 border-blue-600 py-3 px-4 sm:px-6 font-medium text-sm sm:text-base focus:outline-none" onclick="openTab(event, 'send-tab')">
-                    <i class="fas fa-upload mr-2"></i>Send Files
-                </button>
-                <button class="tab-link text-gray-500 hover:text-gray-700 py-3 px-4 sm:px-6 font-medium text-sm sm:text-base focus:outline-none" onclick="openTab(event, 'receive-tab')">
-                    <i class="fas fa-download mr-2"></i>Receive Files
-                </button>
-            </div>
-
-            <div id="send-tab" class="tab-content active-content">
-                <div class="file-drop-zone border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-10 text-center cursor-pointer hover:border-blue-500 transition duration-150">
-                    <i class="fas fa-cloud-upload-alt text-5xl text-blue-500 mb-4"></i>
-                    <p class="text-gray-600 mb-2 text-lg">Drag & Drop files here or</p>
-                    <input type="file" id="fileInput" multiple class="hidden">
-                    <button class="btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg shadow transition duration-150" 
-                            onclick="const fi = document.getElementById('fileInput'); if (fi) { fi.value = null; fi.click(); } event.stopPropagation();">
-                        <i class="fas fa-folder-open"></i> Select Files
-                    </button>
+        <div id="fileShareModal" class="modal fixed inset-0 bg-gray-800 bg-opacity-75 hidden items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center p-5 border-b border-gray-200">
+                    <h2 id="modalTitle" class="text-xl sm:text-2xl font-semibold text-gray-800">
+                        Send or Receive Files
+                    </h2>
+                    <button id="closeFileShareModalBtn" class="text-gray-400 hover:text-gray-600 text-3xl leading-none font-bold" aria-label="Close">&times;</button>
                 </div>
-                <div id="selected-files-list" class="mt-6 space-y-3"></div>
-                <div id="share-id-container" class="mt-6 p-4 bg-gray-100 rounded-lg" style="display:none;">
-                    <p class="text-gray-700 font-medium mb-2">Share this ID with your peer:</p>
-                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        <input type="text" id="shareIdInput" readonly class="flex-grow p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                        <button class="btn bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg shadow transition duration-150" onclick="copyShareId()">
-                            <i class="fas fa-copy"></i> Copy ID
+                <div id="modalContentArea" class="modal-content-area overflow-y-auto p-6 sm:p-8">
+                    <div class="flex border-b border-gray-200 mb-6 justify-center">
+                        <button class="tab-link active text-blue-600 border-b-2 border-blue-600 py-3 px-4 sm:px-6 font-medium text-sm sm:text-base focus:outline-none" onclick="openTab(event, 'send-tab')">
+                            <i class="fas fa-upload mr-2"></i>Send Files
+                        </button>
+                        <button class="tab-link text-gray-500 hover:text-gray-700 py-3 px-4 sm:px-6 font-medium text-sm sm:text-base focus:outline-none" onclick="openTab(event, 'receive-tab')">
+                            <i class="fas fa-download mr-2"></i>Receive Files
                         </button>
                     </div>
-                </div>
-                 <button id="startSessionBtn" class="btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition duration-150 mt-6 w-full sm:w-auto" style="display:none;">
-                    <i class="fas fa-play-circle"></i> Start Sharing Session
-                </button>
-                
-                <div id="sender-active-uploads-container" class="mt-6 space-y-3">
-                </div>
 
-                <div id="message-box-send" class="mt-4 p-3 rounded-md text-sm" style="display:none;"></div>
-            </div>
+                    <div id="send-tab" class="tab-content active-content">
+                        <div class="file-drop-zone border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-10 text-center cursor-pointer hover:border-blue-500 transition duration-150">
+                            <i class="fas fa-cloud-upload-alt text-5xl text-blue-500 mb-4"></i>
+                            <p class="text-gray-600 mb-2 text-lg">Drag & Drop files here or</p>
+                            <input type="file" id="fileInput" multiple class="hidden">
+                            <button class="btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg shadow transition duration-150" 
+                                    onclick="const fi = document.getElementById('fileInput'); if (fi) { fi.value = null; fi.click(); } event.stopPropagation();">
+                                <i class="fas fa-folder-open"></i> Select Files
+                            </button>
+                        </div>
+                        
+                        <div class="mt-6 text-center"> 
+                            <button id="startSessionBtn" class="btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition duration-150 w-full sm:w-auto" style="display:none;">
+                                <i class="fas fa-play-circle"></i> Start Sharing Session
+                            </button>
+                        </div>
 
-            <div id="receive-tab" class="tab-content">
-                <label for="senderIdInput" class="block text-gray-700 font-medium mb-2">Enter Sender's Share ID:</label>
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <input type="text" id="senderIdInput" placeholder="Paste Sender ID here..." class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                    <button id="connectToPeerBtn" class="btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg shadow transition duration-150">
-                        <i class="fas fa-plug"></i> Connect to Sender
-                    </button>
-                </div>
-                <div id="received-files-list" class="mt-6 space-y-3">
+                        <div id="share-id-container" class="mt-6 p-4 bg-gray-100 rounded-lg" style="display:none;">
+                            <p class="text-gray-700 font-medium mb-2">Share this ID with your peer:</p>
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                <input type="text" id="shareIdInput" readonly class="flex-grow p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                <button class="btn bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg shadow transition duration-150" onclick="copyShareId()">
+                                    <i class="fas fa-copy"></i> Copy ID
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="selected-files-list" class="mt-6 space-y-3"></div>
+                        
+                        <div id="sender-active-uploads-container" class="mt-6 space-y-3">
+                        </div>
+                        <div id="message-box-send" class="mt-4 p-3 rounded-md text-sm" style="display:none;"></div>
                     </div>
-                <div id="download-mode-selector" class="mt-4 text-sm text-gray-600 text-center" style="display:none;">
-                    <span class="mr-2 font-medium">Download Mode:</span>
-                    <label class="mr-3"><input type="radio" name="downloadMode" value="parallel" checked class="mr-1 align-middle">Parallel</label>
-                    <label><input type="radio" name="downloadMode" value="sequential" class="mr-1 align-middle">Sequential</label>
+
+                    <div id="receive-tab" class="tab-content">
+                        <label for="senderIdInput" class="block text-gray-700 font-medium mb-2">Enter Sender's Share ID:</label>
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-6"> 
+                            <input type="text" id="senderIdInput" placeholder="Paste Sender ID here..." class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <button id="connectToPeerBtn" class="btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg shadow transition duration-150">
+                                <i class="fas fa-plug"></i> Connect to Sender
+                            </button>
+                        </div>
+
+                        <div id="download-mode-selector" class="mt-4 mb-2 text-sm text-gray-600 text-center" style="display:none;">
+                            <span class="mr-2 font-medium">Download Mode:</span>
+                            <label class="mr-3"><input type="radio" name="downloadMode" value="parallel" checked class="mr-1 align-middle">Parallel</label>
+                            <label><input type="radio" name="downloadMode" value="sequential" class="mr-1 align-middle">Sequential</label>
+                        </div>
+                        <div id="download-all-container" class="mb-6 text-center" style="display:none;"> 
+                            <button id="downloadAllBtn" class="btn bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition duration-150">
+                                <i class="fas fa-cloud-download-alt"></i> Download All Available
+                            </button>
+                        </div>
+                        
+                        <div id="received-files-list" class="mt-6 space-y-3"></div>
+                        <div id="message-box-receive" class="mt-4 p-3 rounded-md text-sm" style="display:none;"></div>
+                    </div>
                 </div>
-                <div id="download-all-container" class="mt-4 text-center" style="display:none;"> 
-                    <button id="downloadAllBtn" class="btn bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition duration-150">
-                        <i class="fas fa-cloud-download-alt"></i> Download All Available
-                    </button>
-                </div>
-                <div id="message-box-receive" class="mt-4 p-3 rounded-md text-sm" style="display:none;"></div>
             </div>
-        </section>
+        </div>
+
 
         <section id="how-it-works" class="mt-12 md:mt-16 py-12 bg-white rounded-xl shadow-xl">
             <h2 class="text-2xl sm:text-3xl font-semibold text-center text-gray-800 mb-10">How It Works</h2>
@@ -200,31 +224,31 @@
     </footer>
 
     <script>
-    // --- PeerJS P2P Logic & UI Interaction Script ---
-
     const CHUNK_SIZE = 64 * 1024; 
     const MAX_PARALLEL_SENDER_UPLOADS = 4; 
-    const FINAL_CANCEL_TIMEOUT = 3000; // ms to wait before finalizing "Cancelled" UI
-    const IGNORED_CHUNK_UI_UPDATE_THROTTLE_MS = 250; // ms to throttle UI updates for ignored chunks
+    const FINAL_CANCEL_TIMEOUT = 3000;
+    const IGNORED_CHUNK_UI_UPDATE_THROTTLE_MS = 250;
 
-    // DOM Elements
     const fileInput = document.getElementById('fileInput');
     const selectedFilesList = document.getElementById('selected-files-list');
-    const fileDropZone = document.querySelector('.file-drop-zone');
-    const startSessionBtn = document.getElementById('startSessionBtn');
-    const shareIdContainer = document.getElementById('share-id-container');
-    const shareIdInput = document.getElementById('shareIdInput');
-    const messageBoxSend = document.getElementById('message-box-send');
+    const startSessionBtn = document.getElementById('startSessionBtn'); 
+    const shareIdContainer = document.getElementById('share-id-container'); 
+    const shareIdInput = document.getElementById('shareIdInput'); 
+    const messageBoxSend = document.getElementById('message-box-send'); 
     const messageBoxReceive = document.getElementById('message-box-receive'); 
     
-    const senderIdInput = document.getElementById('senderIdInput');
-    const connectToPeerBtn = document.getElementById('connectToPeerBtn');
-    const receivedFilesList = document.getElementById('received-files-list');
-    const downloadAllContainer = document.getElementById('download-all-container');
-    const downloadAllBtn = document.getElementById('downloadAllBtn');
-    const downloadModeSelector = document.getElementById('download-mode-selector');
+    const senderIdInput = document.getElementById('senderIdInput'); 
+    const connectToPeerBtn = document.getElementById('connectToPeerBtn'); 
+    const receivedFilesList = document.getElementById('received-files-list'); 
+    const downloadAllContainer = document.getElementById('download-all-container'); 
+    const downloadAllBtn = document.getElementById('downloadAllBtn'); 
+    const downloadModeSelector = document.getElementById('download-mode-selector'); 
     
     const senderActiveUploadsContainer = document.getElementById('sender-active-uploads-container');
+
+    const openFileShareModalBtn = document.getElementById('openFileShareModalBtn');
+    const fileShareModal = document.getElementById('fileShareModal');
+    const closeFileShareModalBtn = document.getElementById('closeFileShareModalBtn');
 
     let selectedFiles = []; 
     let peer = null; 
@@ -244,7 +268,6 @@
         config: { 'iceServers': [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }
     };
 
-    // --- Utility Functions ---
     function generateShortId(length = 6) {
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = '';
@@ -277,7 +300,7 @@
     }
 
     function showMessage(tab, text, type = 'info') {
-        const box = tab === 'send' ? messageBoxSend : messageBoxReceive;
+        const box = tab === 'send' ? messageBoxSend : messageBoxReceive; 
         if (!box) { console.error(`showMessage: Message box for tab '${tab}' not found. Text: ${text}`); return; }
         box.textContent = text;
         box.className = 'mt-4 p-3 rounded-md text-sm'; 
@@ -285,42 +308,144 @@
         else if (type === 'error') box.classList.add('bg-red-100', 'text-red-700');
         else box.classList.add('bg-blue-100', 'text-blue-700');
         box.style.display = 'block';
-        setTimeout(() => { box.style.display = 'none'; }, 7000);
+        setTimeout(() => { if(box) box.style.display = 'none'; }, 7000);
+    }
+    
+    function openTab(event, tabName) {
+        const currentTabContents = fileShareModal.querySelectorAll('.tab-content');
+        const currentTabLinks = fileShareModal.querySelectorAll('.tab-link');
+
+        currentTabContents.forEach(c => { c.style.display = "none"; c.classList.remove("active-content"); });
+        currentTabLinks.forEach(l => { l.classList.remove("active", "text-blue-600", "border-blue-600"); l.classList.add("text-gray-500", "hover:text-gray-700"); });
+        
+        const tabToShow = fileShareModal.querySelector(`#${tabName}`);
+        if (tabToShow) {
+            tabToShow.style.display = "block";
+            tabToShow.classList.add("active-content");
+        }
+        if (event && event.currentTarget) {
+            event.currentTarget.classList.add("active", "text-blue-600", "border-blue-600");
+            event.currentTarget.classList.remove("text-gray-500", "hover:text-gray-700");
+        }
     }
 
-    const tabLinks = document.querySelectorAll('.tab-link');
-    const tabContents = document.querySelectorAll('.tab-content');
-    function openTab(event, tabName) {
-        tabContents.forEach(c => { c.style.display = "none"; c.classList.remove("active-content"); });
-        tabLinks.forEach(l => { l.classList.remove("active", "text-blue-600", "border-blue-600"); l.classList.add("text-gray-500", "hover:text-gray-700"); });
-        document.getElementById(tabName).style.display = "block";
-        document.getElementById(tabName).classList.add("active-content");
-        event.currentTarget.classList.add("active", "text-blue-600", "border-blue-600");
-        event.currentTarget.classList.remove("text-gray-500", "hover:text-gray-700");
+    if (openFileShareModalBtn && fileShareModal && closeFileShareModalBtn) {
+        openFileShareModalBtn.addEventListener('click', () => {
+            fileShareModal.classList.remove('hidden');
+            fileShareModal.classList.add('flex'); 
+            const firstTabLinkInModal = fileShareModal.querySelector('.tab-link');
+            if (firstTabLinkInModal) {
+                firstTabLinkInModal.click(); 
+            }
+        });
+
+        closeFileShareModalBtn.addEventListener('click', () => {
+            fileShareModal.classList.add('hidden');
+            fileShareModal.classList.remove('flex');
+        });
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !fileShareModal.classList.contains('hidden')) {
+                closeFileShareModalBtn.click();
+            }
+        });
+        fileShareModal.addEventListener('click', (event) => {
+            if (event.target === fileShareModal) { 
+                 closeFileShareModalBtn.click();
+            }
+        });
     }
+
     document.addEventListener('DOMContentLoaded', () => {
-        if (tabLinks.length > 0) openTab({ currentTarget: tabLinks[0] }, 'send-tab');
         document.getElementById('currentYear').textContent = new Date().getFullYear();
         const mobileMenuButton = document.getElementById('mobileMenuButton');
         const mobileMenu = document.getElementById('mobileMenu');
         if (mobileMenuButton && mobileMenu) mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
-        if(downloadAllBtn) downloadAllBtn.addEventListener('click', handleDownloadAll);
-    });
+        
+        const fileInputElement = document.getElementById('fileInput'); 
+        const fileDropZoneElement = fileShareModal.querySelector('.file-drop-zone'); 
+        const startSessionBtnElement = document.getElementById('startSessionBtn'); 
+        const connectToPeerBtnElement = document.getElementById('connectToPeerBtn'); 
+        const downloadAllBtnElement = document.getElementById('downloadAllBtn'); 
 
-    if(fileInput) fileInput.addEventListener('change', handleFileSelect);
-    if(fileDropZone) {
-        fileDropZone.addEventListener('click', (event) => {
-            if (event.target === fileDropZone || event.target.tagName === 'P' || event.target.tagName === 'I' || event.target.classList.contains('fa-cloud-upload-alt')) {
-                if (fileInput) { fileInput.value = null; fileInput.click(); }
-            }
-        });
-        fileDropZone.addEventListener('dragover', e => { e.preventDefault(); fileDropZone.classList.add('dragover'); });
-        fileDropZone.addEventListener('dragleave', () => fileDropZone.classList.remove('dragover'));
-        fileDropZone.addEventListener('drop', e => {
-            e.preventDefault(); fileDropZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) handleFileSelect({ target: { files: e.dataTransfer.files } });
-        });
-    }
+        if(fileInputElement) fileInputElement.addEventListener('change', handleFileSelect);
+        if(fileDropZoneElement) {
+            fileDropZoneElement.addEventListener('click', (event) => {
+                if (event.target === fileDropZoneElement || event.target.tagName === 'P' || event.target.tagName === 'I' || event.target.classList.contains('fa-cloud-upload-alt')) {
+                    if (fileInputElement) { fileInputElement.value = null; fileInputElement.click(); }
+                }
+            });
+            fileDropZoneElement.addEventListener('dragover', e => { e.preventDefault(); fileDropZoneElement.classList.add('dragover'); });
+            fileDropZoneElement.addEventListener('dragleave', () => fileDropZoneElement.classList.remove('dragover'));
+            fileDropZoneElement.addEventListener('drop', e => {
+                e.preventDefault(); fileDropZoneElement.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) handleFileSelect({ target: { files: e.dataTransfer.files } });
+            });
+        }
+        if (startSessionBtnElement) {
+            startSessionBtnElement.addEventListener('click', () => {
+                if (selectedFiles.length === 0) { showMessage('send', "Please select files to share first.", 'error'); return; }
+                if (peer && !peer.destroyed) { peer.destroy(); }
+                peer = null; 
+                const shortId = generateShortId(6); 
+                showMessage('send', `Attempting to use Share ID: ${shortId}...`, 'info');
+                startSessionBtnElement.disabled = true; startSessionBtnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+                peer = new Peer(shortId, senderPeerJsConfig); 
+                peer.on('open', (id) => { 
+                    showMessage('send', `Sharing session started. Your Share ID: ${id}`, 'success');
+                    shareIdInput.value = id; shareIdContainer.style.display = 'block';
+                    startSessionBtnElement.disabled = false; startSessionBtnElement.innerHTML = '<i class="fas fa-sync-alt"></i> Restart Session (New ID)';
+                    setupSenderPeerEventHandlers(peer); 
+                });
+                peer.on('error', (err) => {
+                    console.error("[SENDER] PeerJS Error during setup: ", err);
+                    if (err.type === 'unavailable-id') showMessage('send', `Share ID "${shortId}" was taken. Please try starting again.`, 'error');
+                    else if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(err.type)) showMessage('send', `Network/Server error with PeerJS. Check internet and try again. (${err.type})`, 'error');
+                    else showMessage('send', `PeerJS Error: ${err.type} - ${err.message}`, 'error');
+                    startSessionBtnElement.disabled = false; startSessionBtnElement.innerHTML = '<i class="fas fa-play-circle"></i> Start Sharing Session';
+                    if(peer && !peer.destroyed) peer.destroy(); peer = null; if(shareIdContainer) shareIdContainer.style.display = 'none';
+                });
+            });
+        }
+        if (connectToPeerBtnElement) {
+             connectToPeerBtnElement.addEventListener('click', () => {
+                const remoteId = senderIdInput.value.trim();
+                if (!remoteId) { showMessage('receive', "Please enter the Sender's Share ID.", 'error'); return; }
+                if (peer) { peer.destroy(); }
+                
+                receiverPeerJsConfig.debug = 0; 
+                peer = new Peer(undefined, receiverPeerJsConfig); 
+
+                connectToPeerBtnElement.disabled = true;
+                showMessage('receive', `Initializing connection to ${remoteId}...`, 'info');
+
+                peer.on('open', () => {
+                    currentConnection = peer.connect(remoteId, { reliable: true });
+                    currentConnection.on('open', () => {
+                        showMessage('receive', `Connected to sender ${remoteId}! Waiting for file list...`, 'success');
+                        connectToPeerBtnElement.disabled = false;
+                        connectToPeerBtnElement.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
+                    });
+                    currentConnection.on('data', (data) => handleReceiverData(data));
+                    currentConnection.on('close', () => {
+                        showMessage('receive', 'Connection to sender closed.', 'info');
+                        resetReceiverUI(connectToPeerBtnElement);
+                    });
+                    currentConnection.on('error', (err) => {
+                        console.error("[RECEIVER] DataConnection error:", err);
+                        showMessage('receive', `Connection error: ${err.message}`, 'error');
+                        resetReceiverUI(connectToPeerBtnElement);
+                    });
+                });
+                peer.on('error', (err) => {
+                    console.error("[RECEIVER] Receiver's Peer object error:", err);
+                    showMessage('receive', `PeerJS Error (Receiver): ${err.type} - ${err.message}`, 'error');
+                    resetReceiverUI(connectToPeerBtnElement);
+                });
+            });
+        }
+        if(downloadAllBtnElement) downloadAllBtnElement.addEventListener('click', handleDownloadAll);
+    });
 
     function handleFileSelect(event) {
         const newFiles = Array.from(event.target.files);
@@ -329,11 +454,12 @@
                 selectedFiles.push(newFile);
             } else { showMessage('send', `'${escapeHTML(newFile.name)}' is already selected.`, 'info'); }
         });
-        renderSelectedFiles();
+        renderSelectedFiles(); 
         if (selectedFiles.length > 0) { if(startSessionBtn) startSessionBtn.style.display = 'inline-flex'; } 
         else { if(startSessionBtn) startSessionBtn.style.display = 'none';}
     }
-    function renderSelectedFiles() {
+
+    function renderSelectedFiles() { 
         selectedFilesList.innerHTML = '';
         selectedFiles.forEach((file, index) => {
             const item = document.createElement('div');
@@ -348,8 +474,11 @@
             selectedFilesList.appendChild(item);
         });
     }
+
     function removeFile(index) {
-        selectedFiles.splice(index, 1); renderSelectedFiles();
+        selectedFiles.splice(index, 1); 
+        renderSelectedFiles(); 
+
         if (selectedFiles.length === 0) {
             if(startSessionBtn) startSessionBtn.style.display = 'none';
             if(shareIdContainer) shareIdContainer.style.display = 'none';
@@ -357,400 +486,20 @@
             else if (currentConnection && currentConnection.open) { showMessage('send', 'File list updated. Resending to peer.', 'info'); sendFileList(currentConnection); }
         } else if (currentConnection && currentConnection.open) { showMessage('send', 'File list updated. Resending to peer.', 'info'); sendFileList(currentConnection); }
     }
-
-    if (startSessionBtn) {
-        startSessionBtn.addEventListener('click', () => {
-            if (selectedFiles.length === 0) { showMessage('send', "Please select files to share first.", 'error'); return; }
-            if (peer && !peer.destroyed) { peer.destroy(); }
-            peer = null; 
-            const shortId = generateShortId(6); 
-            showMessage('send', `Attempting to use Share ID: ${shortId}...`, 'info');
-            startSessionBtn.disabled = true; startSessionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
-            peer = new Peer(shortId, senderPeerJsConfig); 
-            peer.on('open', (id) => { 
-                showMessage('send', `Sharing session started. Your Share ID: ${id}`, 'success');
-                shareIdInput.value = id; shareIdContainer.style.display = 'block';
-                startSessionBtn.disabled = false; startSessionBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Restart Session (New ID)';
-                setupSenderPeerEventHandlers(peer); 
-            });
-            peer.on('error', (err) => {
-                console.error("[SENDER] PeerJS Error during setup: ", err);
-                if (err.type === 'unavailable-id') showMessage('send', `Share ID "${shortId}" was taken. Please try starting again.`, 'error');
-                else if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(err.type)) showMessage('send', `Network/Server error with PeerJS. Check internet and try again. (${err.type})`, 'error');
-                else showMessage('send', `PeerJS Error: ${err.type} - ${err.message}`, 'error');
-                startSessionBtn.disabled = false; startSessionBtn.innerHTML = '<i class="fas fa-play-circle"></i> Start Sharing Session';
-                if(peer && !peer.destroyed) peer.destroy(); peer = null; shareIdContainer.style.display = 'none';
-            });
-        });
-    }
-
-    function setupSenderPeerEventHandlers(currentPeerInstance) {
-        if (!currentPeerInstance || currentPeerInstance.destroyed) return;
-        currentPeerInstance.off('connection'); currentPeerInstance.off('disconnected');
-        currentPeerInstance.on('connection', (conn) => {
-            showMessage('send', `Peer ${conn.peer} attempting to connect.`, 'info');
-            currentConnection = conn; 
-            senderFileRequestQueue = []; 
-            senderActiveUploadsContainer.innerHTML = ''; 
-            conn.on('open', () => { showMessage('send', `Peer ${conn.peer} connected. Sending file list.`, 'success'); sendFileList(conn); });
-            conn.on('data', (data) => handleSenderData(conn, data));
-            conn.on('close', () => {
-                showMessage('send', `Peer ${conn.peer} disconnected.`, 'info');
-                if (currentConnection && currentConnection.peer === conn.peer) currentConnection = null;
-                senderActiveUploadsContainer.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => {
-                    const statusEl = el.querySelector('.upload-item-status');
-                    if (statusEl && !statusEl.textContent.includes('Complete') && !statusEl.textContent.includes('Cancelled')) {
-                        statusEl.innerHTML = '<span class="text-yellow-600 font-medium">Interrupted (Connection Closed)</span>'; 
-                        el.querySelector('.upload-item-progressbar').value = 0; 
-                    }
-                });
-                senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer);
-            });
-            conn.on('error', (err) => {
-                showMessage('send', `Connection error with ${conn.peer}: ${err.message}`, 'error');
-                if (currentConnection && currentConnection.peer === conn.peer) currentConnection = null;
-                 senderActiveUploadsContainer.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => {
-                    const statusEl = el.querySelector('.upload-item-status');
-                     if (statusEl) statusEl.innerHTML = '<span class="text-red-600 font-medium">Failed (Connection Error)</span>'; 
-                     el.querySelector('.upload-item-progressbar').value = 0;
-                });
-                senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer);
-            });
-        });
-        currentPeerInstance.on('disconnected', () => {
-            showMessage('send', 'Disconnected from PeerJS server. You may need to restart session.', 'warning');
-            senderFileRequestQueue = []; senderActiveUploadsContainer.innerHTML = '';
-        });
-    }
-
-    function sendFileList(conn) {
-        const fileMetadata = selectedFiles.map(file => ({ name: file.name, size: file.size, type: file.type }));
-        if (conn && conn.open) { conn.send({ type: 'file-list', files: fileMetadata }); showMessage('send', 'Sent file list to peer.', 'info'); } 
-        else { showMessage('send', 'Could not send file list: connection not open.', 'error'); }
-    }
     
-    function processSenderQueue(conn) { 
-        if (!conn || !conn.open) {
-            console.log(`[SENDER QUEUE DEBUG] For ${conn?.peer || 'unknown peer'}: Connection not open or invalid. Cannot process queue.`);
-            return;
-        }
-
-        let activeUploadsCount = Array.from(senderActiveUploadsContainer.children)
-            .filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length;
-        
-        console.log(`[SENDER QUEUE DEBUG] For ${conn.peer}: Current active uploads: ${activeUploadsCount}, Max allowed: ${MAX_PARALLEL_SENDER_UPLOADS}. Queue length for this peer: ${senderFileRequestQueue.filter(req => req.conn.peer === conn.peer).length}`);
-
-        while (activeUploadsCount < MAX_PARALLEL_SENDER_UPLOADS && senderFileRequestQueue.some(req => req.conn.peer === conn.peer)) {
-            const requestIndex = senderFileRequestQueue.findIndex(req => req.conn.peer === conn.peer);
-            if (requestIndex === -1) {
-                console.log(`[SENDER QUEUE DEBUG] No more requests for ${conn.peer} in the queue.`);
-                break; 
-            }
-
-            const nextRequest = senderFileRequestQueue.splice(requestIndex, 1)[0];
-            const escapedFileName = escapeHTML(nextRequest.file.name);
-            let uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
-            
-            if (uploadItem && (uploadItem.dataset.status === "sending" || uploadItem.dataset.status === "complete")) {
-                console.warn(`[SENDER QUEUE DEBUG] File ${escapedFileName} for ${conn.peer} is already sending or complete. Skipping re-initiation.`);
-                activeUploadsCount = Array.from(senderActiveUploadsContainer.children) 
-                    .filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length; 
-                continue; 
-            }
-            
-            if (!uploadItem || ["cancelled", "error", "cancelling"].includes(uploadItem.dataset.status)) { 
-                if (uploadItem) { 
-                    console.log(`[SENDER QUEUE DEBUG] Re-using/resetting UI for ${escapedFileName} (previous status: ${uploadItem.dataset.status})`);
-                } else { 
-                    console.log(`[SENDER QUEUE DEBUG] Creating new UI for ${escapedFileName}`);
-                    uploadItem = document.createElement('div');
-                    senderActiveUploadsContainer.prepend(uploadItem); 
-                }
-                uploadItem.className = 'upload-item p-3 bg-gray-50 rounded-lg shadow-sm';
-                uploadItem.dataset.filename = escapedFileName;
-                uploadItem.dataset.connId = conn.peer;
-                uploadItem.innerHTML = `
-                    <p class="text-sm font-medium text-gray-700">Sending to ${conn.peer.slice(0,8)}...: <span class="upload-item-filename font-semibold">${escapedFileName}</span></p>
-                    <progress class="upload-item-progressbar w-full h-2 rounded-lg mt-1" value="0" max="100"></progress>
-                    <p class="upload-item-status text-xs text-gray-500 mt-1">
-                        <span class="upload-percentage font-medium">0%</span>
-                        <span class="text-gray-400"> of </span>
-                        <span class="upload-total-size-text text-gray-400">${formatFileSize(nextRequest.file.size)}</span>
-                        <span class="text-gray-400"> (</span><span class="upload-acknowledged-size-text text-gray-400" style="display: inline-block; min-width: 75px; text-align: right;">0 Bytes</span><span class="text-gray-400"> acknowledged)</span>
-                    </p>
-                `;
-            }
-            
-            uploadItem.dataset.status = "sending"; 
-            uploadItem.dataset.totalSize = nextRequest.file.size;
-            
-            const uploadItemProgressBar = uploadItem.querySelector('.upload-item-progressbar');
-            const percentageSpan = uploadItem.querySelector('.upload-percentage');
-            const acknowledgedSizeSpan = uploadItem.querySelector('.upload-acknowledged-size-text');
-            const totalSizeTextSpan = uploadItem.querySelector('.upload-total-size-text');
-
-            if (uploadItemProgressBar) { uploadItemProgressBar.value = 0; uploadItemProgressBar.classList.remove('completed');}
-            if (percentageSpan) percentageSpan.textContent = '0%';
-            if (acknowledgedSizeSpan) acknowledgedSizeSpan.textContent = formatFileSize(0);
-            if (totalSizeTextSpan) totalSizeTextSpan.textContent = formatFileSize(nextRequest.file.size);
-
-            console.log(`[SENDER QUEUE DEBUG] Starting sendFileInChunks for ${nextRequest.file.name} to ${conn.peer}. Active uploads will be: ${activeUploadsCount + 1}`);
-            sendFileInChunks(conn, nextRequest.file); 
-            activeUploadsCount++; 
-        }
-
-        if(activeUploadsCount >= MAX_PARALLEL_SENDER_UPLOADS) {
-            console.log(`[SENDER QUEUE DEBUG] Reached max parallel uploads for ${conn.peer}. No more files started this cycle.`);
-        } else if (!senderFileRequestQueue.some(req => req.conn.peer === conn.peer)) {
-            console.log(`[SENDER QUEUE DEBUG] No more items in queue for ${conn.peer} after processing this cycle.`);
-        }
-    }
-
-    function handleSenderData(conn, data) {
-        console.log(`[SENDER] Received data from ${conn.peer}:`, data.type, data.fileName || '');
-        if (data.type === 'request-file') {
-            const fileToShare = selectedFiles.find(f => f.name === data.fileName);
-            if (fileToShare) { 
-                const isAlreadyInQueue = senderFileRequestQueue.some(req => req.file.name === fileToShare.name && req.conn.peer === conn.peer);
-                const isAlreadySendingOrComplete = document.querySelector(`.upload-item[data-filename="${escapeHTML(data.fileName)}"][data-conn-id="${conn.peer}"][data-status="sending"]`) ||
-                                                 document.querySelector(`.upload-item[data-filename="${escapeHTML(data.fileName)}"][data-conn-id="${conn.peer}"][data-status="complete"]`);
-
-                if (!isAlreadyInQueue && !isAlreadySendingOrComplete) {
-                    senderFileRequestQueue.push({ conn: conn, file: fileToShare, totalSize: fileToShare.size }); 
-                    showMessage('send', `'${escapeHTML(data.fileName)}' added to send queue for ${conn.peer.slice(0,8)}.`, 'info');
-                    console.log(`[SENDER] Added ${data.fileName} to queue for ${conn.peer}. Queue size for peer: ${senderFileRequestQueue.filter(req => req.conn.peer === conn.peer).length}`);
-                    processSenderQueue(conn); 
-                } else {
-                    console.log(`[SENDER] Request for ${data.fileName} from ${conn.peer} ignored, already processing or in queue.`);
-                }
-            } else { 
-                conn.send({ type: 'error', message: `File '${data.fileName}' not found.` }); 
-                showMessage('send', `Peer requested non-existent file: '${data.fileName}'`, 'error');
-            }
-        } else if (data.type === 'receiver-progress') {
-            const escapedFileName = escapeHTML(data.fileName);
-            const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
-
-            if (uploadItem && uploadItem.dataset.status === "sending") { 
-                const totalSize = parseFloat(uploadItem.dataset.totalSize) || 0; 
-                const percentage = data.percentage;
-                const receivedBytes = data.receivedBytes; 
-
-                const progressBar = uploadItem.querySelector('.upload-item-progressbar');
-                const percentageSpan = uploadItem.querySelector('.upload-percentage');
-                const acknowledgedSizeSpan = uploadItem.querySelector('.upload-acknowledged-size-text');
-
-                if (progressBar) {
-                    progressBar.value = percentage;
-                    if (percentage === 100) progressBar.classList.add('completed');
-                    else progressBar.classList.remove('completed');
-                }
-                if (percentageSpan) percentageSpan.textContent = `${percentage}%`;
-                if (acknowledgedSizeSpan) acknowledgedSizeSpan.textContent = formatFileSize(receivedBytes); 
-                
-                if (percentage === 100) { 
-                    const statusP = uploadItem.querySelector('.upload-item-status');
-                    if(statusP) statusP.innerHTML = `<span class="text-green-600 font-medium">Complete! (${formatFileSize(totalSize)} acknowledged)</span>`;
-                    uploadItem.dataset.status = "complete"; 
-                    console.log(`[SENDER DEBUG] File ${escapedFileName} to ${conn.peer} marked as complete by receiver. Calling processSenderQueue.`);
-                    setTimeout(() => { uploadItem.remove(); }, 5000); 
-                    processSenderQueue(conn);    
-                }
-            }
-        } else if (data.type === 'cancel-transfer') {
-            const escapedFileName = escapeHTML(data.fileName);
-            console.log(`[SENDER DEBUG] Received cancel-transfer for ${escapedFileName} from ${conn.peer}.`);
-            
-            const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
-            if (uploadItem) {
-                const statusP = uploadItem.querySelector('.upload-item-status');
-                if (statusP && uploadItem.dataset.status !== "cancelled") { 
-                    statusP.innerHTML = `<span class="text-yellow-600 font-medium"><i class="fas fa-spinner fa-spin mr-1"></i>Cancelling...</span>`;
-                }
-                uploadItem.dataset.status = "cancelling"; 
-
-                setTimeout(() => {
-                    if (uploadItem.dataset.status === "cancelling") { 
-                         uploadItem.dataset.status = "cancelled";
-                         if (statusP) statusP.innerHTML = '<span class="text-yellow-600 font-medium">Cancelled by receiver</span>';
-                         console.log(`[SENDER DEBUG] Status for ${escapedFileName} set to 'cancelled'.`);
-                         setTimeout(() => { 
-                            if(uploadItem.dataset.status === "cancelled") uploadItem.remove(); 
-                        }, 4000); 
-                    }
-                }, 1000); 
-            }
-            senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer));
-            console.log(`[SENDER DEBUG] Processed cancel-transfer for ${data.fileName}. Calling processSenderQueue for ${conn.peer}.`);
-            processSenderQueue(conn); 
-        }
-    }
-
-    async function sendFileInChunks(conn, file) {
-        console.log(`[SENDER sendFileInChunks] Initiating for file: ${file.name} to ${conn.peer}`);
-        const reader = new FileReader();
-        let offset = 0;
-        const totalFileSize = file.size;
-        let chunkIndex = 0;
-        const totalChunks = Math.ceil(totalFileSize / CHUNK_SIZE); 
-        const escapedFileName = escapeHTML(file.name);
-        
-        const uploadItem = document.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
-        if (!uploadItem) {
-             console.error(`[SENDER sendFileInChunks] Critical: Upload item for ${file.name} not found at initiation. Aborting send.`);
-            return;
-        }
-        if (uploadItem.dataset.status !== "sending") {
-             console.log(`[SENDER sendFileInChunks] Initial status for ${file.name} is not 'sending' (${uploadItem.dataset.status}). Not starting.`);
-            return;
-        }
-
-        function readNextChunk() {
-            if (uploadItem.dataset.status !== "sending") {
-                console.log(`[SENDER sendFileInChunks - readNextChunk] HALTED for ${file.name}. Status: ${uploadItem.dataset.status}.`);
-                reader.onload = null; 
-                reader.onerror = null;
-                return; 
-            }
-            if (offset >= totalFileSize || !conn.open ) {
-                console.log(`[SENDER sendFileInChunks - readNextChunk] Conditions met for halting/completion for ${file.name}. Offset: ${offset}, ConnOpen: ${conn.open}.`);
-                if (offset >= totalFileSize && conn.open && uploadItem.dataset.status === "sending") {
-                    if (conn.open) conn.send({ type: 'transfer-end', name: file.name, success: true });
-                }
-                return; 
-            }
-            const slice = file.slice(offset, offset + CHUNK_SIZE);
-            reader.readAsArrayBuffer(slice);
-        }
-
-        reader.onload = (event) => {
-            if (uploadItem.dataset.status !== "sending") {
-                console.log(`[SENDER sendFileInChunks - onload] HALTED before send for ${file.name}. Status: ${uploadItem.dataset.status}.`);
-                return; 
-            }
-            if (!conn.open) {
-                 console.log(`[SENDER sendFileInChunks - onload] Connection closed for ${file.name} before send.`);
-                 return;
-            }
-
-            try {
-                const chunkData = event.target.result;
-                const isLastChunk = (offset + chunkData.byteLength >= totalFileSize);
-                
-                conn.send({
-                    type: 'file-chunk', 
-                    name: file.name,
-                    chunk: chunkData, 
-                    chunkIndex: chunkIndex, 
-                    totalChunks: totalChunks, 
-                    isLast: isLastChunk,
-                    fileType: file.type,
-                    fileSize: totalFileSize
-                });
-                offset += chunkData.byteLength;
-                chunkIndex++;
-
-                if (offset < totalFileSize) {
-                    if (uploadItem.dataset.status === "sending") {
-                        readNextChunk(); 
-                    } else {
-                         console.log(`[SENDER sendFileInChunks - onload] Status changed for ${file.name} after send, before next read. Halting further reads.`);
-                    }
-                } else { 
-                    console.log(`[SENDER sendFileInChunks] Finished sending all chunks of ${escapedFileName} to ${conn.peer}.`);
-                    if (conn.open) conn.send({ type: 'transfer-end', name: file.name, success: true });
-                }
-            } catch (error) {
-                console.error(`[SENDER sendFileInChunks] Error sending chunk for ${escapedFileName}:`, error);
-                if(uploadItem && uploadItem.dataset.status === "sending") uploadItem.dataset.status = "error"; 
-                const statusP = uploadItem?.querySelector('.upload-item-status');
-                if(statusP) statusP.innerHTML = `<span class="text-red-600 font-medium">Error Sending Chunk</span>`;
-                if (conn.open) conn.send({ type: 'transfer-end', name: file.name, success: false, error: `Error sending chunk for ${escapedFileName}` });
-                processSenderQueue(conn); 
-            }
-        };
-        reader.onerror = (error) => {
-            console.error(`[SENDER sendFileInChunks] FileReader error for ${escapedFileName}:`, error);
-            if(uploadItem && uploadItem.dataset.status === "sending") uploadItem.dataset.status = "error";
-            const statusP = uploadItem?.querySelector('.upload-item-status');
-            if(statusP) statusP.innerHTML = `<span class="text-red-600 font-medium">File Read Error</span>`;
-            if (conn.open) conn.send({ type: 'transfer-end', name: file.name, success: false, error: `File read error on sender side for ${escapedFileName}.` });
-            processSenderQueue(conn);
-        };
-        
-        if (uploadItem.dataset.status === "sending") {
-            readNextChunk();
-        } else {
-            console.log(`[SENDER sendFileInChunks] Initial status for ${file.name} is not 'sending' (${uploadItem.dataset.status}). Not starting readNextChunk.`);
-        }
-    }
-
-
-    function copyShareId() {
-        if (!shareIdInput.value) return;
-        shareIdInput.select();
-        shareIdInput.setSelectionRange(0, 99999);
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(shareIdInput.value)
-                    .then(() => showMessage('send', 'Share ID copied to clipboard!', 'success'))
-                    .catch(() => { if(!document.execCommand('copy')) throw Error('Fallback copy failed'); showMessage('send', 'Share ID copied (fallback)!', 'success'); });
-            } else if (document.execCommand('copy')) {
-                 showMessage('send', 'Share ID copied (fallback)!', 'success');
-            } else { throw Error('Copy not supported'); }
-        } catch (err) {
-            showMessage('send', 'Failed to copy ID. Please copy manually.', 'error');
-        }
-        window.getSelection().removeAllRanges();
-    }
-
-    if (connectToPeerBtn) {
-        connectToPeerBtn.addEventListener('click', () => {
-            const remoteId = senderIdInput.value.trim();
-            if (!remoteId) { showMessage('receive', "Please enter the Sender's Share ID.", 'error'); return; }
-            if (peer) { peer.destroy(); }
-            
-            receiverPeerJsConfig.debug = 0; 
-            peer = new Peer(undefined, receiverPeerJsConfig); 
-
-            connectToPeerBtn.disabled = true;
-            showMessage('receive', `Initializing connection to ${remoteId}...`, 'info');
-
-            peer.on('open', () => {
-                currentConnection = peer.connect(remoteId, { reliable: true });
-                currentConnection.on('open', () => {
-                    showMessage('receive', `Connected to sender ${remoteId}! Waiting for file list...`, 'success');
-                    connectToPeerBtn.disabled = false;
-                    connectToPeerBtn.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
-                });
-                currentConnection.on('data', (data) => handleReceiverData(data));
-                currentConnection.on('close', () => {
-                    showMessage('receive', 'Connection to sender closed.', 'info');
-                    resetReceiverUI();
-                });
-                currentConnection.on('error', (err) => {
-                    console.error("[RECEIVER] DataConnection error:", err);
-                    showMessage('receive', `Connection error: ${err.message}`, 'error');
-                    resetReceiverUI();
-                });
-            });
-            peer.on('error', (err) => {
-                console.error("[RECEIVER] Receiver's Peer object error:", err);
-                showMessage('receive', `PeerJS Error (Receiver): ${err.type} - ${err.message}`, 'error');
-                resetReceiverUI();
-            });
-        });
-    }
-    
-    function resetReceiverUI() {
-        if (connectToPeerBtn) {
+    function resetReceiverUI(buttonToReset) { 
+        if (buttonToReset) { 
+            buttonToReset.disabled = false;
+            buttonToReset.innerHTML = '<i class="fas fa-plug"></i> Connect to Sender';
+        } else if (connectToPeerBtn) { 
             connectToPeerBtn.disabled = false;
             connectToPeerBtn.innerHTML = '<i class="fas fa-plug"></i> Connect to Sender';
         }
         if (receivedFilesList) receivedFilesList.innerHTML = '';
         if (downloadAllContainer) downloadAllContainer.style.display = 'none'; 
         if (downloadModeSelector) downloadModeSelector.style.display = 'none';
-        document.querySelectorAll('.file-progress-container').forEach(el => el.style.display = 'none');
+        
+        fileShareModal.querySelectorAll('.file-progress-container').forEach(el => el.style.display = 'none');
 
         if (currentConnection) { currentConnection.close(); currentConnection = null; }
         if(peer && !peer.destroyed) { peer.destroy(); peer = null; }
@@ -760,15 +509,24 @@
     }
 
     function handleReceiverData(data) {
-        console.log(`[RECEIVER] Received data:`, data.type, data.fileName || data.name || '');
+        console.log('[RECEIVER] handleReceiverData invoked. Data received:', JSON.parse(JSON.stringify(data)));
         if (data.type === 'file-list') {
-            receivedFilesList.innerHTML = ''; 
+            console.log('[RECEIVER] Processing file-list type.');
+            console.log('[RECEIVER] receivedFilesList element:', receivedFilesList);
+            console.log('[RECEIVER] downloadModeSelector element:', downloadModeSelector);
+            console.log('[RECEIVER] downloadAllContainer element:', downloadAllContainer);
+            console.log('[RECEIVER] data.files:', data.files ? JSON.parse(JSON.stringify(data.files)) : 'undefined');
+
+
+            if(receivedFilesList) receivedFilesList.innerHTML = ''; 
             receiverDownloadQueue = []; 
             currentDownloadingFileReceiver = null;
             fileChunksCollector = {}; 
 
             if (data.files && data.files.length > 0) {
+                console.log(`[RECEIVER] Found ${data.files.length} file(s) in file-list.`);
                 data.files.forEach(file => {
+                    console.log('[RECEIVER] Creating UI for file:', file.name);
                     const escapedFileName = escapeHTML(file.name);
                     const item = document.createElement('div');
                     item.className = 'file-item p-3 bg-gray-100 rounded-lg shadow-sm'; 
@@ -801,7 +559,12 @@
                                 <span class="speed-text font-medium">Waiting...</span>
                             </p>
                         </div>`;
-                    receivedFilesList.appendChild(item);
+                    if(receivedFilesList) {
+                        receivedFilesList.appendChild(item);
+                        console.log('[RECEIVER] Appended file item to receivedFilesList for:', file.name);
+                    } else {
+                        console.error('[RECEIVER] receivedFilesList is null, cannot append file item.');
+                    }
                     item.querySelector('.download-btn').addEventListener('click', function() {
                         requestFileFromServer(this.dataset.filename);
                     });
@@ -809,9 +572,20 @@
                         handleCancelDownload(this.dataset.filename);
                     });
                 });
-                if (downloadModeSelector) downloadModeSelector.style.display = 'block';
-                if (downloadAllContainer) downloadAllContainer.style.display = 'block';
+                if (downloadModeSelector) {
+                    downloadModeSelector.style.display = 'block';
+                    console.log('[RECEIVER] downloadModeSelector displayed.');
+                } else {
+                     console.error('[RECEIVER] downloadModeSelector is null.');
+                }
+                if (downloadAllContainer) {
+                    downloadAllContainer.style.display = 'block';
+                    console.log('[RECEIVER] downloadAllContainer displayed.');
+                } else {
+                    console.error('[RECEIVER] downloadAllContainer is null.');
+                }
             } else { 
+                console.log('[RECEIVER] No files in file-list or data.files is empty/null.');
                 if (downloadModeSelector) downloadModeSelector.style.display = 'none';
                 if (downloadAllContainer) downloadAllContainer.style.display = 'none';
                 showMessage('receive', 'Sender has no files to share at the moment.', 'info');
@@ -824,7 +598,7 @@
                 const fileData = fileChunksCollector[data.name];
                 if (fileData) fileData.cancelled = true; 
 
-                const fileItemElement = document.querySelector(`.file-item[data-filename="${escapeHTML(data.name)}"]`);
+                const fileItemElement = fileShareModal.querySelector(`.file-item[data-filename="${escapeHTML(data.name)}"]`);
                 if (fileItemElement) {
                     const statusP = fileItemElement.querySelector('.file-status-text');
                     if (statusP) statusP.innerHTML = `<span class="text-red-500 font-medium">Error from Sender</span>`;
@@ -838,18 +612,16 @@
                 }
                 processReceiverDownloadQueue(); 
             } else {
-                console.log(`[RECEIVER DEBUG] Sender confirmed end of transfer for ${data.name}. Local processing will finalize.`);
                  const fileData = fileChunksCollector[data.name];
                 if (fileData && !fileData.completed && !fileData.cancelled) {
                     fileData.senderFinishedSending = true; 
                     if (fileData.receivedSize >= fileData.totalSize && fileData.totalSize > 0) {
-                        console.log(`[RECEIVER DEBUG] Sender finished, and all bytes seem received for ${data.name}. Triggering final check via dummy processFileChunk.`);
                         processFileChunk({ 
                             name: data.name, 
                             isLast: true, 
                             totalChunks: fileData.totalChunksCount || Math.ceil(fileData.totalSize / CHUNK_SIZE), 
                             chunkIndex: (fileData.totalChunksCount || Math.ceil(fileData.totalSize / CHUNK_SIZE)) -1,
-                            fileSize: fileData.totalSize, 
+                            fileSize: fileData.totalSize,
                             fileType: fileData.fileType
                         });
                     }
@@ -862,14 +634,13 @@
     }
     
     function handleDownloadAll() {
-        console.log("[RECEIVER] handleDownloadAll clicked.");
         const fileItems = receivedFilesList.querySelectorAll('.file-item');
         if (fileItems.length === 0) {
             showMessage('receive', 'No files available to download.', 'info');
             return;
         }
         
-        const downloadMode = document.querySelector('input[name="downloadMode"]:checked').value;
+        const downloadMode = fileShareModal.querySelector('input[name="downloadMode"]:checked').value;
         showMessage('receive', `Starting to download all ${fileItems.length} files (${downloadMode} mode)...`, 'info');
 
         receiverDownloadQueue = []; 
@@ -882,49 +653,41 @@
                  receiverDownloadQueue.push(fileName);
             }
         });
-        console.log(`[RECEIVER] Download All: Initial queue:`, [...receiverDownloadQueue]);
 
         if (downloadMode === 'parallel') {
             const limit = MAX_PARALLEL_SENDER_UPLOADS; 
             let requestedCount = 0;
             for(let i = 0; i < receiverDownloadQueue.length && requestedCount < limit; i++) {
                 const fileNameToRequest = receiverDownloadQueue[i]; 
-                const fileItemElement = document.querySelector(`.file-item[data-filename="${escapeHTML(fileNameToRequest)}"]`);
+                const fileItemElement = receivedFilesList.querySelector(`.file-item[data-filename="${escapeHTML(fileNameToRequest)}"]`);
                 const existingDownloadButton = fileItemElement?.querySelector('.download-btn');
                 if (fileItemElement && existingDownloadButton && (existingDownloadButton.style.display === 'none' || existingDownloadButton.disabled)) {
-                    console.log(`[RECEIVER] Download All: ${fileNameToRequest} seems already active, skipping initial request.`);
                     continue;
                 }
                 requestFileFromServer(fileNameToRequest);
                 requestedCount++;
             }
             receiverDownloadQueue.splice(0, requestedCount);
-            console.log(`[RECEIVER] Download All: Requested ${requestedCount} files. Remaining in queue: ${receiverDownloadQueue.length}`);
 
         } else { 
             processReceiverDownloadQueue(); 
         }
-
         if(downloadAllBtn) downloadAllBtn.disabled = true; 
         setTimeout(() => { if(downloadAllBtn) downloadAllBtn.disabled = false; }, 5000); 
     }
 
     function processReceiverDownloadQueue() { 
-        const downloadMode = document.querySelector('input[name="downloadMode"]:checked')?.value || 'parallel';
-        console.log(`[RECEIVER QUEUE DEBUG] processReceiverDownloadQueue called. Mode: ${downloadMode}. Queue length: ${receiverDownloadQueue.length}. Current sequential: ${currentDownloadingFileReceiver}`);
+        const downloadMode = fileShareModal.querySelector('input[name="downloadMode"]:checked')?.value || 'parallel';
 
         if (downloadMode === 'sequential') {
             if (currentDownloadingFileReceiver === null && receiverDownloadQueue.length > 0) {
                 const nextFileToDownload = receiverDownloadQueue.shift();
-                console.log(`[RECEIVER QUEUE DEBUG - Sequential] Starting next: ${nextFileToDownload}`);
                 currentDownloadingFileReceiver = nextFileToDownload;
                 requestFileFromServer(nextFileToDownload);
-            } else if (receiverDownloadQueue.length === 0 && currentDownloadingFileReceiver === null) {
-                console.log('[RECEIVER QUEUE DEBUG - Sequential] All sequential downloads processed.');
-            }
+            } 
         } else { 
             let activeReceiverDownloads = 0;
-            document.querySelectorAll('#received-files-list .file-item').forEach(item => {
+            receivedFilesList.querySelectorAll('.file-item').forEach(item => {
                 const progressContainer = item.querySelector('.file-progress-container');
                 const downloadButton = item.querySelector('.download-btn');
                 if (progressContainer && progressContainer.style.display === 'block' && 
@@ -935,30 +698,22 @@
                     }
                 }
             });
-
-            console.log(`[RECEIVER QUEUE DEBUG - Parallel] Active downloads: ${activeReceiverDownloads}, Max allowed: ${MAX_PARALLEL_SENDER_UPLOADS}, Queue: ${receiverDownloadQueue.length}`);
             
             while(activeReceiverDownloads < MAX_PARALLEL_SENDER_UPLOADS && receiverDownloadQueue.length > 0) {
                 const fileNameToRequest = receiverDownloadQueue.shift(); 
                 if (fileNameToRequest) {
-                    console.log(`[RECEIVER QUEUE DEBUG - Parallel] Attempting to start next from queue: ${fileNameToRequest}`);
                     requestFileFromServer(fileNameToRequest); 
                     activeReceiverDownloads++; 
                 } else {
                     break; 
                 }
             }
-             if (receiverDownloadQueue.length === 0 && activeReceiverDownloads === 0) {
-                console.log('[RECEIVER QUEUE DEBUG - Parallel] All parallel downloads processed or initiated.');
-            }
         }
     }
 
     function requestFileFromServer(fileName) {
-        console.log(`[RECEIVER requestFileFromServer] Called for: ${fileName}`);
-        const fileItemElement = document.querySelector(`.file-item[data-filename="${escapeHTML(fileName)}"]`);
+        const fileItemElement = fileShareModal.querySelector(`.file-item[data-filename="${escapeHTML(fileName)}"]`);
          if (!fileItemElement) {
-            console.error(`[RECEIVER requestFileFromServer] Could not find file item for ${fileName}`);
             if (fileName === currentDownloadingFileReceiver) { 
                 currentDownloadingFileReceiver = null;
                 processReceiverDownloadQueue();
@@ -979,11 +734,9 @@
         if (currentConnection && currentConnection.open) {
             if (fileChunksCollector[fileName] && !fileChunksCollector[fileName].completed && !fileChunksCollector[fileName].cancelled && 
                 progressContainer.style.display === 'block' && (downloadButton.style.display === 'none' || downloadButton.disabled)) {
-                 console.log(`[RECEIVER requestFileFromServer] Download for '${escapeHTML(fileName)}' is already in progress. Not re-requesting.`);
                  return;
             }
 
-            console.log(`[RECEIVER requestFileFromServer] Proceeding to request ${fileName}`);
             if (progressContainer) progressContainer.style.display = 'block';
             if (progressBar) { progressBar.value = 0; progressBar.classList.remove('completed'); }
             if (progressPercentageSpan) progressPercentageSpan.textContent = '0%';
@@ -1015,14 +768,12 @@
                 initialRequestTime: Date.now(),
                 receivedSizeAtCancellationPoint: 0, 
                 totalChunksAtCancellationPoint: 0,
-                lastIgnoredChunkUIUpdateTime: 0, // For throttling ignored chunk UI updates
+                lastIgnoredChunkUIUpdateTime: 0,
             };
             
-            console.log(`[RECEIVER requestFileFromServer] Sending 'request-file' message for: ${fileName}`);
             currentConnection.send({ type: 'request-file', fileName: fileName });
 
         } else { 
-            console.error(`[RECEIVER requestFileFromServer] Not connected to sender. Cannot request ${fileName}.`);
             showMessage('receive', 'Not connected to sender. Please connect first.', 'error');
              if (fileName === currentDownloadingFileReceiver) { 
                 currentDownloadingFileReceiver = null;
@@ -1050,9 +801,7 @@
 
     function handleCancelDownload(fileName) {
         const escapedFileName = escapeHTML(fileName);
-        console.log(`[RECEIVER DEBUG] handleCancelDownload initiated for ${escapedFileName}`);
-        
-        const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+        const fileItemElement = fileShareModal.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
         const fileData = fileChunksCollector[escapedFileName];
 
         if (fileData && fileData.finalCancelTimer) {
@@ -1070,7 +819,6 @@
         }
 
         if (fileData) {
-            console.log(`[RECEIVER DEBUG] Marking ${escapedFileName} as cancelled in collector.`);
             fileData.cancelled = true;
             fileData.receivedSizeAtCancellationPoint = fileData.receivedSize;
             fileData.totalChunksAtCancellationPoint = fileData.totalChunksCount > 0 ? fileData.totalChunksCount :
@@ -1111,15 +859,12 @@
         }
 
         if (currentConnection && currentConnection.open) {
-            console.log(`[RECEIVER DEBUG] Sending 'cancel-transfer' message for ${escapedFileName} to sender.`);
             currentConnection.send({ type: 'cancel-transfer', fileName: fileName });
         }
         
         if (fileName === currentDownloadingFileReceiver) { 
-            console.log(`[RECEIVER DEBUG] ${fileName} was current sequential download. Resetting currentDownloadingFileReceiver.`);
             currentDownloadingFileReceiver = null;
         }
-        console.log(`[RECEIVER DEBUG] Calling processReceiverDownloadQueue after cancelling ${fileName}.`);
         processReceiverDownloadQueue(); 
     }
 
@@ -1129,7 +874,6 @@
         const fileData = fileChunksCollector[name];
 
         if (!fileData) { 
-             console.warn(`[RECEIVER DEBUG] processFileChunk: Collector for ${name} not found. Ignored.`);
              return; 
         }
 
@@ -1145,7 +889,7 @@
             const now = Date.now();
 
             if (fileData.ignoredChunksCount === 1 || now - (fileData.lastIgnoredChunkUIUpdateTime || 0) > IGNORED_CHUNK_UI_UPDATE_THROTTLE_MS ) {
-                const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+                const fileItemElement = fileShareModal.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
                 if (fileItemElement) {
                     const statusP = fileItemElement.querySelector('.file-status-text');
                     if (statusP) {
@@ -1158,7 +902,7 @@
 
             if (fileData.finalCancelTimer) clearTimeout(fileData.finalCancelTimer);
             fileData.finalCancelTimer = setTimeout(() => {
-                const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+                const fileItemElement = fileShareModal.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
                 if (fileData.cancelled && fileItemElement) { 
                     const currentStatusP = fileItemElement.querySelector('.file-status-text');
                      if (currentStatusP) {
@@ -1179,14 +923,11 @@
                     if(progressBar) progressBar.value = 0;
                 }
             }, FINAL_CANCEL_TIMEOUT);
-
-            console.log(`[RECEIVER processFileChunk DEBUG] Ignoring chunk ${chunkIndex !== undefined ? chunkIndex : 'N/A'} for cancelled file: ${name}. Total ignored: ${fileData.ignoredChunksCount}`);
             return; 
         }
 
-        const fileItemElement = document.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+        const fileItemElement = fileShareModal.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
         if (!fileItemElement) { 
-            console.warn(`[RECEIVER DEBUG] processFileChunk: No file item for ${escapedFileName}. Ignored.`);
             return; 
         }
     
@@ -1197,7 +938,6 @@
         const speedSpan = fileItemElement.querySelector('.speed-text');
     
         if (fileData.completed) { 
-            console.log(`[RECEIVER DEBUG] File ${name} already completed. Ignoring chunk ${chunkIndex}.`);
             return;
         }
     
@@ -1214,9 +954,7 @@
             fileData.chunks[chunkIndex] = chunk; 
             fileData.receivedSize += chunk.byteLength;
         } else if (!isLast && chunkIndex !== undefined) { 
-            console.warn(`[RECEIVER DEBUG] Received chunk message for ${name} (index ${chunkIndex}) without chunk data and not isLast.`);
         } else if (!isLast && chunkIndex === undefined) { 
-             console.warn(`[RECEIVER DEBUG] Received incomplete chunk message for ${name}. Ignoring.`);
              return;
         }
     
@@ -1263,12 +1001,10 @@
             for(let i = 0; i < expectedTotalChunks; i++) { 
                 if(!fileData.chunks[i]) {
                     allChunksPresent = false;
-                    console.warn(`[RECEIVER DEBUG] Missing chunk ${i} for file ${name} at completion check.`);
                 }
             }
 
             if (!allChunksPresent && (isLast || fileData.senderFinishedSending)) {
-                console.error(`[RECEIVER DEBUG] Critical: File ${name} marked for completion, but not all chunks are present. Aborting assembly.`);
                 showMessage('receive', `Error assembling file '${escapedFileName}'. Missing chunk data.`, 'error');
                 const statusP_err = fileItemElement.querySelector('.file-status-text');
                 if(statusP_err) statusP_err.innerHTML = `<span class="text-red-500 font-medium">Assembly Error - Data Missing</span>`;
@@ -1280,14 +1016,12 @@
             }
 
             fileData.completed = true; 
-            console.log(`[RECEIVER DEBUG] Conditions met for completing ${name}. Assembling file.`);
             
             const assembledChunks = [];
             for(let i = 0; i < expectedTotalChunks; i++){ 
                 if(fileData.chunks[i]){
                     assembledChunks.push(fileData.chunks[i]);
                 } else {
-                    console.error(`[RECEIVER DEBUG] Critical assembly error: Missing chunk ${i} for ${name} during final assembly loop.`);
                     showMessage('receive', `Error assembling file '${escapedFileName}'. Missing data (loop).`, 'error');
                     const statusP_err = fileItemElement.querySelector('.file-status-text');
                     if(statusP_err) statusP_err.innerHTML = `<span class="text-red-500 font-medium">Assembly Error - Missing (Loop)</span>`;
@@ -1330,10 +1064,8 @@
             if (name === currentDownloadingFileReceiver) { 
                 currentDownloadingFileReceiver = null;
             }
-            console.log(`[RECEIVER DEBUG] File ${name} completed. Calling processReceiverDownloadQueue.`);
             processReceiverDownloadQueue(); 
         } else if ((isLast || fileData.senderFinishedSending) && fileData.receivedSize < fileData.totalSize) {
-            console.warn(`[RECEIVER DEBUG] End signal for ${name}, but receivedSize (${fileData.receivedSize}) < totalSize (${fileData.totalSize}).`);
         }
     }
 
@@ -1351,18 +1083,331 @@
     window.addEventListener('load', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const shareIdFromUrl = urlParams.get('shareId'); 
-        if (shareIdFromUrl) {
-            const receiveTabLink = Array.from(tabLinks).find(link => link.getAttribute('onclick').includes('receive-tab'));
-            if (receiveTabLink) openTab({ currentTarget: receiveTabLink }, 'receive-tab');
-            if(senderIdInput) senderIdInput.value = shareIdFromUrl;
-            showMessage('receive', `Sender ID detected from URL. Click 'Connect to Sender' to proceed.`, 'info');
+        if (shareIdFromUrl && senderIdInput) { 
+            const receiveTabLinkInModal = fileShareModal.querySelector('.tab-link[onclick*="receive-tab"]');
+            if (receiveTabLinkInModal) {
+                if (fileShareModal.classList.contains('hidden')) {
+                    openFileShareModalBtn.click(); 
+                    setTimeout(() => {
+                        receiveTabLinkInModal.click();
+                        senderIdInput.value = shareIdFromUrl;
+                        showMessage('receive', `Sender ID detected from URL. Click 'Connect to Sender' to proceed.`, 'info');
+                    }, 100); 
+                } else {
+                     receiveTabLinkInModal.click();
+                     senderIdInput.value = shareIdFromUrl;
+                     showMessage('receive', `Sender ID detected from URL. Click 'Connect to Sender' to proceed.`, 'info');
+                }
+            }
         }
     });
 
     window.addEventListener('beforeunload', () => {
         if (peer) { peer.destroy(); peer = null; }
     });
+    
+    function copyShareId() {
+        const currentShareIdInput = fileShareModal.querySelector('#shareIdInput');
+        if (!currentShareIdInput || !currentShareIdInput.value) return;
+        currentShareIdInput.select();
+        currentShareIdInput.setSelectionRange(0, 99999);
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(currentShareIdInput.value)
+                    .then(() => showMessage('send', 'Share ID copied to clipboard!', 'success'))
+                    .catch(() => { if(!document.execCommand('copy')) throw Error('Fallback copy failed'); showMessage('send', 'Share ID copied (fallback)!', 'success'); });
+            } else if (document.execCommand('copy')) {
+                 showMessage('send', 'Share ID copied (fallback)!', 'success');
+            } else { throw Error('Copy not supported'); }
+        } catch (err) {
+            showMessage('send', 'Failed to copy ID. Please copy manually.', 'error');
+        }
+        window.getSelection().removeAllRanges();
+    }
+    
+    function setupSenderPeerEventHandlers(currentPeerInstance) {
+        if (!currentPeerInstance || currentPeerInstance.destroyed) return;
+        currentPeerInstance.off('connection'); currentPeerInstance.off('disconnected');
+        const currentSenderActiveUploadsContainer = fileShareModal.querySelector('#sender-active-uploads-container');
 
+        currentPeerInstance.on('connection', (conn) => {
+            console.log('[SENDER] Peer attempting to connect:', conn.peer);
+            showMessage('send', `Peer ${conn.peer} attempting to connect.`, 'info');
+            currentConnection = conn; 
+            senderFileRequestQueue = []; 
+            if (currentSenderActiveUploadsContainer) currentSenderActiveUploadsContainer.innerHTML = ''; 
+            
+            conn.on('open', () => { 
+                console.log('[SENDER] Connection opened with peer:', conn.peer);
+                showMessage('send', `Peer ${conn.peer} connected. Sending file list.`, 'success'); 
+                sendFileList(conn); 
+            });
+            conn.on('data', (data) => handleSenderDataMODAL(conn, data)); 
+            conn.on('close', () => {
+                showMessage('send', `Peer ${conn.peer} disconnected.`, 'info');
+                if (currentConnection && currentConnection.peer === conn.peer) currentConnection = null;
+                if (currentSenderActiveUploadsContainer) {
+                    currentSenderActiveUploadsContainer.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => {
+                        const statusEl = el.querySelector('.upload-item-status');
+                        if (statusEl && !statusEl.textContent.includes('Complete') && !statusEl.textContent.includes('Cancelled')) {
+                            statusEl.innerHTML = '<span class="text-yellow-600 font-medium">Interrupted (Connection Closed)</span>'; 
+                            el.querySelector('.upload-item-progressbar').value = 0; 
+                        }
+                    });
+                }
+                senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer);
+            });
+            conn.on('error', (err) => {
+                showMessage('send', `Connection error with ${conn.peer}: ${err.message}`, 'error');
+                if (currentConnection && currentConnection.peer === conn.peer) currentConnection = null;
+                if (currentSenderActiveUploadsContainer) {
+                    currentSenderActiveUploadsContainer.querySelectorAll(`.upload-item[data-conn-id="${conn.peer}"]`).forEach(el => {
+                        const statusEl = el.querySelector('.upload-item-status');
+                        if (statusEl) statusEl.innerHTML = `<span class="text-red-600 font-medium">Failed (Connection Error)</span>`; 
+                        el.querySelector('.upload-item-progressbar').value = 0;
+                    });
+                }
+                senderFileRequestQueue = senderFileRequestQueue.filter(req => req.conn.peer !== conn.peer);
+            });
+        });
+        currentPeerInstance.on('disconnected', () => {
+            showMessage('send', 'Disconnected from PeerJS server. You may need to restart session.', 'warning');
+            senderFileRequestQueue = []; 
+            if (currentSenderActiveUploadsContainer) currentSenderActiveUploadsContainer.innerHTML = '';
+        });
+    }
+
+    function sendFileList(conn) {
+        console.log('[SENDER] sendFileList called. selectedFiles count:', selectedFiles.length, 'Selected Files:', JSON.parse(JSON.stringify(selectedFiles.map(f => ({name: f.name, size: f.size})))));
+        const fileMetadata = selectedFiles.map(file => ({ name: file.name, size: file.size, type: file.type }));
+        if (conn && conn.open) {
+            conn.send({ type: 'file-list', files: fileMetadata });
+            showMessage('send', `Sent file list (${fileMetadata.length} files) to peer.`, 'info');
+            console.log('[SENDER] File list sent:', fileMetadata);
+        } else {
+            showMessage('send', 'Could not send file list: connection not open.', 'error');
+            console.error('[SENDER] Could not send file list: connection not open or invalid.', conn);
+        }
+    }
+
+
+    function processSenderQueueMODAL(conn) { 
+        if (!conn || !conn.open) return;
+        const currentSenderActiveUploadsContainer = fileShareModal.querySelector('#sender-active-uploads-container');
+        if (!currentSenderActiveUploadsContainer) return;
+
+        let activeUploadsCount = Array.from(currentSenderActiveUploadsContainer.children)
+            .filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length;
+        
+        while (activeUploadsCount < MAX_PARALLEL_SENDER_UPLOADS && senderFileRequestQueue.some(req => req.conn.peer === conn.peer)) {
+            const requestIndex = senderFileRequestQueue.findIndex(req => req.conn.peer === conn.peer);
+            if (requestIndex === -1) break; 
+
+            const nextRequest = senderFileRequestQueue.splice(requestIndex, 1)[0];
+            const escapedFileName = escapeHTML(nextRequest.file.name);
+            let uploadItem = currentSenderActiveUploadsContainer.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+            
+            if (uploadItem && (uploadItem.dataset.status === "sending" || uploadItem.dataset.status === "complete")) {
+                activeUploadsCount = Array.from(currentSenderActiveUploadsContainer.children) 
+                    .filter(el => el.dataset.connId === conn.peer && el.dataset.status === "sending").length; 
+                continue; 
+            }
+            
+            if (!uploadItem || ["cancelled", "error", "cancelling"].includes(uploadItem.dataset.status)) { 
+                if (uploadItem) {  } else { 
+                    uploadItem = document.createElement('div');
+                    currentSenderActiveUploadsContainer.prepend(uploadItem); 
+                }
+                uploadItem.className = 'upload-item p-3 bg-gray-50 rounded-lg shadow-sm';
+                uploadItem.dataset.filename = escapedFileName;
+                uploadItem.dataset.connId = conn.peer;
+                uploadItem.innerHTML = `
+                    <p class="text-sm font-medium text-gray-700">Sending to ${conn.peer.slice(0,8)}...: <span class="upload-item-filename font-semibold">${escapedFileName}</span></p>
+                    <progress class="upload-item-progressbar w-full h-2 rounded-lg mt-1" value="0" max="100"></progress>
+                    <p class="upload-item-status text-xs text-gray-500 mt-1">
+                        <span class="upload-percentage font-medium">0%</span>
+                        <span class="text-gray-400"> of </span>
+                        <span class="upload-total-size-text text-gray-400">${formatFileSize(nextRequest.file.size)}</span>
+                        <span class="text-gray-400"> (</span><span class="upload-acknowledged-size-text text-gray-400" style="display: inline-block; min-width: 75px; text-align: right;">0 Bytes</span><span class="text-gray-400"> acknowledged)</span>
+                    </p>
+                `;
+            }
+            
+            uploadItem.dataset.status = "sending"; 
+            uploadItem.dataset.totalSize = nextRequest.file.size;
+            
+            const uploadItemProgressBar = uploadItem.querySelector('.upload-item-progressbar');
+            const percentageSpan = uploadItem.querySelector('.upload-percentage');
+            const acknowledgedSizeSpan = uploadItem.querySelector('.upload-acknowledged-size-text');
+            const totalSizeTextSpan = uploadItem.querySelector('.upload-total-size-text');
+
+            if (uploadItemProgressBar) { uploadItemProgressBar.value = 0; uploadItemProgressBar.classList.remove('completed');}
+            if (percentageSpan) percentageSpan.textContent = '0%';
+            if (acknowledgedSizeSpan) acknowledgedSizeSpan.textContent = formatFileSize(0);
+            if (totalSizeTextSpan) totalSizeTextSpan.textContent = formatFileSize(nextRequest.file.size);
+
+            sendFileInChunksMODAL(conn, nextRequest.file, currentSenderActiveUploadsContainer); 
+            activeUploadsCount++; 
+        }
+    }
+
+    function handleSenderDataMODAL(conn, data) { 
+        const currentSenderActiveUploadsContainer = fileShareModal.querySelector('#sender-active-uploads-container');
+        if (!currentSenderActiveUploadsContainer && (data.type === 'receiver-progress' || data.type === 'cancel-transfer')) return;
+
+        if (data.type === 'request-file') {
+            const fileToShare = selectedFiles.find(f => f.name === data.fileName);
+            if (fileToShare) { 
+                const isAlreadyInQueue = senderFileRequestQueue.some(req => req.file.name === fileToShare.name && req.conn.peer === conn.peer);
+                const isAlreadySendingOrComplete = currentSenderActiveUploadsContainer.querySelector(`.upload-item[data-filename="${escapeHTML(data.fileName)}"][data-conn-id="${conn.peer}"][data-status="sending"]`) ||
+                                                 currentSenderActiveUploadsContainer.querySelector(`.upload-item[data-filename="${escapeHTML(data.fileName)}"][data-conn-id="${conn.peer}"][data-status="complete"]`);
+
+                if (!isAlreadyInQueue && !isAlreadySendingOrComplete) {
+                    senderFileRequestQueue.push({ conn: conn, file: fileToShare, totalSize: fileToShare.size }); 
+                    showMessage('send', `'${escapeHTML(data.fileName)}' added to send queue for ${conn.peer.slice(0,8)}.`, 'info');
+                    processSenderQueueMODAL(conn); 
+                }
+            } else { 
+                conn.send({ type: 'error', message: `File '${data.fileName}' not found.` }); 
+                showMessage('send', `Peer requested non-existent file: '${data.fileName}'`, 'error');
+            }
+        } else if (data.type === 'receiver-progress') {
+            const escapedFileName = escapeHTML(data.fileName);
+            const uploadItem = currentSenderActiveUploadsContainer.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+
+            if (uploadItem && uploadItem.dataset.status === "sending") { 
+                const totalSize = parseFloat(uploadItem.dataset.totalSize) || 0; 
+                const percentage = data.percentage;
+                const receivedBytes = data.receivedBytes; 
+
+                const progressBar = uploadItem.querySelector('.upload-item-progressbar');
+                const percentageSpan = uploadItem.querySelector('.upload-percentage');
+                const acknowledgedSizeSpan = uploadItem.querySelector('.upload-acknowledged-size-text');
+
+                if (progressBar) {
+                    progressBar.value = percentage;
+                    if (percentage === 100) progressBar.classList.add('completed');
+                    else progressBar.classList.remove('completed');
+                }
+                if (percentageSpan) percentageSpan.textContent = `${percentage}%`;
+                if (acknowledgedSizeSpan) acknowledgedSizeSpan.textContent = formatFileSize(receivedBytes); 
+                
+                if (percentage === 100) { 
+                    const statusP = uploadItem.querySelector('.upload-item-status');
+                    if(statusP) statusP.innerHTML = `<span class="text-green-600 font-medium">Complete! (${formatFileSize(totalSize)} acknowledged)</span>`;
+                    uploadItem.dataset.status = "complete"; 
+                    setTimeout(() => { uploadItem.remove(); }, 5000); 
+                    processSenderQueueMODAL(conn);    
+                }
+            }
+        } else if (data.type === 'cancel-transfer') {
+            const escapedFileName = escapeHTML(data.fileName);
+            const uploadItem = currentSenderActiveUploadsContainer.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+            if (uploadItem) {
+                const statusP = uploadItem.querySelector('.upload-item-status');
+                if (statusP && uploadItem.dataset.status !== "cancelled") { 
+                    statusP.innerHTML = `<span class="text-yellow-600 font-medium"><i class="fas fa-spinner fa-spin mr-1"></i>Cancelling...</span>`;
+                }
+                uploadItem.dataset.status = "cancelling"; 
+
+                setTimeout(() => {
+                    if (uploadItem.dataset.status === "cancelling") { 
+                         uploadItem.dataset.status = "cancelled";
+                         if (statusP) statusP.innerHTML = '<span class="text-yellow-600 font-medium">Cancelled by receiver</span>';
+                         setTimeout(() => { 
+                            if(uploadItem.dataset.status === "cancelled") uploadItem.remove(); 
+                        }, 4000); 
+                    }
+                }, 1000); 
+            }
+            senderFileRequestQueue = senderFileRequestQueue.filter(req => !(req.file.name === data.fileName && req.conn.peer === conn.peer));
+            processSenderQueueMODAL(conn); 
+        }
+    }
+    
+    async function sendFileInChunksMODAL(conn, file, currentSenderActiveUploadsContainerRef) { 
+        const reader = new FileReader();
+        let offset = 0;
+        const totalFileSize = file.size;
+        let chunkIndex = 0;
+        const totalChunks = Math.ceil(totalFileSize / CHUNK_SIZE); 
+        const escapedFileName = escapeHTML(file.name);
+        
+        const uploadItem = currentSenderActiveUploadsContainerRef.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+        if (!uploadItem) {
+            return;
+        }
+        if (uploadItem.dataset.status !== "sending") {
+            return;
+        }
+
+        function readNextChunk() {
+            const currentUploadItemState = currentSenderActiveUploadsContainerRef.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+
+            if (!currentUploadItemState || currentUploadItemState.dataset.status !== "sending") {
+                reader.onload = null; 
+                reader.onerror = null;
+                return; 
+            }
+            if (offset >= totalFileSize || !conn.open ) {
+                if (offset >= totalFileSize && conn.open && currentUploadItemState && currentUploadItemState.dataset.status === "sending") {
+                    if (conn.open) conn.send({ type: 'transfer-end', name: file.name, success: true });
+                }
+                return; 
+            }
+            const slice = file.slice(offset, offset + CHUNK_SIZE);
+            reader.readAsArrayBuffer(slice);
+        }
+
+        reader.onload = (event) => {
+            const currentUploadItemState = currentSenderActiveUploadsContainerRef.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+            if (!currentUploadItemState || currentUploadItemState.dataset.status !== "sending") {
+                return; 
+            }
+            if (!conn.open) return;
+
+            try {
+                const chunkData = event.target.result;
+                const isLastChunk = (offset + chunkData.byteLength >= totalFileSize);
+                
+                conn.send({
+                    type: 'file-chunk', name: file.name, chunk: chunkData, 
+                    chunkIndex: chunkIndex, totalChunks: totalChunks, isLast: isLastChunk,
+                    fileType: file.type, fileSize: totalFileSize
+                });
+                offset += chunkData.byteLength;
+                chunkIndex++;
+
+                if (offset < totalFileSize) {
+                    const itemStateAfterSend = currentSenderActiveUploadsContainerRef.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+                    if (itemStateAfterSend && itemStateAfterSend.dataset.status === "sending") {
+                        readNextChunk(); 
+                    }
+                } else { 
+                    if (conn.open) conn.send({ type: 'transfer-end', name: file.name, success: true });
+                }
+            } catch (error) {
+                if(currentUploadItemState && currentUploadItemState.dataset.status === "sending") currentUploadItemState.dataset.status = "error"; 
+                const statusP = currentUploadItemState?.querySelector('.upload-item-status');
+                if(statusP) statusP.innerHTML = `<span class="text-red-600 font-medium">Error Sending Chunk</span>`;
+                if (conn.open) conn.send({ type: 'transfer-end', name: file.name, success: false, error: `Error sending chunk for ${escapedFileName}` });
+                processSenderQueueMODAL(conn); 
+            }
+        };
+        reader.onerror = (error) => {
+            const currentUploadItemState = currentSenderActiveUploadsContainerRef.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+            if(currentUploadItemState && currentUploadItemState.dataset.status === "sending") currentUploadItemState.dataset.status = "error";
+            const statusP = currentUploadItemState?.querySelector('.upload-item-status');
+            if(statusP) statusP.innerHTML = `<span class="text-red-500 font-medium">File Read Error</span>`;
+            if (conn.open) conn.send({ type: 'transfer-end', name: file.name, success: false, error: `File read error on sender side for ${escapedFileName}.` });
+            processSenderQueueMODAL(conn);
+        };
+        
+        const initialUploadItemState = currentSenderActiveUploadsContainerRef.querySelector(`.upload-item[data-filename="${escapedFileName}"][data-conn-id="${conn.peer}"]`);
+        if (initialUploadItemState && initialUploadItemState.dataset.status === "sending") {
+            readNextChunk();
+        }
+    }
     </script>
 </body>
 </html>
