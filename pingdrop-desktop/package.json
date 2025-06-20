@@ -1,0 +1,38 @@
+{
+  "name": "pingdrop",
+  "version": "1.2.0",
+  "description": "Direct Peer-to-Peer File Sharing App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "package:win": "electron-packager . PingDrop --platform=win32 --arch=x64 --out=release-builds --overwrite --icon=assets/icon.ico"
+  },
+  "author": "GautamMIH",
+  "license": "MIT",
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^28.2.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.yourcompany.pingdrop",
+    "productName": "PingDrop",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
