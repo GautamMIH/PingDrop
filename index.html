@@ -130,6 +130,9 @@
                         <button class="tab-link text-gray-500 hover:text-gray-700 py-3 px-4 sm:px-6 font-medium text-sm sm:text-base focus:outline-none" onclick="openTab(event, 'receive-tab')">
                             <i class="fas fa-download mr-2"></i>Receive Files
                         </button>
+                        <button class="tab-link text-gray-500 hover:text-gray-700 py-3 px-4 sm:px-6 font-medium text-sm sm:text-base focus:outline-none" onclick="openTab(event, 'history-tab')">
+                            <i class="fas fa-history mr-2"></i>History
+                        </button>
                     </div>
 
                     <div id="send-tab" class="tab-content active-content">
@@ -189,6 +192,19 @@
                         <div id="received-files-list" class="mt-6 space-y-3"></div>
                         <div id="message-box-receive" class="mt-4 p-3 rounded-md text-sm" style="display:none;"></div>
                     </div>
+
+                    <div id="history-tab" class="tab-content">
+                        <div class="flex justify-between items-center mb-4 border-b pb-3 border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-800">Completed Downloads</h3>
+                            <button id="clearHistoryBtn" class="btn bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-lg shadow-sm text-xs transition-colors duration-150">
+                                <i class="fas fa-trash-alt"></i> Clear History
+                            </button>
+                        </div>
+                        <div id="download-history-list" class="space-y-3 max-h-[45vh] overflow-y-auto pr-2">
+                            <p class="text-gray-500 text-sm text-center py-6">No download history yet.</p>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -261,6 +277,7 @@
     const FINAL_CANCEL_TIMEOUT = 3000;
     const IGNORED_CHUNK_UI_UPDATE_THROTTLE_MS = 250;
     const TOAST_VISIBILITY_DURATION_MS = 4000;
+    const MAX_HISTORY_ITEMS = 50;
 
     const fileInput = document.getElementById('fileInput');
     const selectedFilesList = document.getElementById('selected-files-list');
@@ -287,6 +304,7 @@
     const toastMessageElement = document.getElementById('toast-message');
     let toastTimeoutId = null;
 
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
     let selectedFiles = []; 
     let peer = null; 
@@ -353,15 +371,13 @@
         if (!toastNotificationElement || !toastMessageElement) return;
 
         toastMessageElement.textContent = message;
-        toastNotificationElement.className = ''; // Reset classes
-        toastNotificationElement.classList.add('show');
+        toastNotificationElement.className = 'show';
 
         if (type === 'error') {
             toastNotificationElement.classList.add('error');
         } else if (type === 'info') {
             toastNotificationElement.classList.add('info');
         } else {
-            // Default to success, no extra class needed if base is success color
              toastNotificationElement.style.backgroundColor = '#22c55e'; // Explicitly set for default success
         }
 
@@ -390,6 +406,10 @@
         if (event && event.currentTarget) {
             event.currentTarget.classList.add("active", "text-blue-600", "border-blue-600");
             event.currentTarget.classList.remove("text-gray-500", "hover:text-gray-700");
+        }
+
+        if (tabName === 'history-tab') {
+            renderDownloadHistory();
         }
     }
 
@@ -431,6 +451,7 @@
         const startSessionBtnElement = document.getElementById('startSessionBtn'); 
         const connectToPeerBtnElement = document.getElementById('connectToPeerBtn'); 
         const downloadAllBtnElement = document.getElementById('downloadAllBtn'); 
+        const clearHistoryBtnElement = document.getElementById('clearHistoryBtn');
 
         if(fileInputElement) fileInputElement.addEventListener('change', handleFileSelect);
         if(fileDropZoneElement) {
@@ -509,6 +530,7 @@
             });
         }
         if(downloadAllBtnElement) downloadAllBtnElement.addEventListener('click', handleDownloadAll);
+        if(clearHistoryBtnElement) clearHistoryBtnElement.addEventListener('click', clearDownloadHistory);
     });
 
     function handleFileSelect(event) {
@@ -1085,7 +1107,7 @@
             const completeFileBlob = new Blob(assembledChunks, { type: fileData.fileType || 'application/octet-stream' });
             triggerDownload(completeFileBlob, name);
             
-            // Show toast notification instead of modal message for successful download
+            saveDownloadToHistory(name, fileData.totalSize);
             showToastNotification(`'${escapedFileName}' downloaded successfully!`, 'success');
             
             const statusP = fileItemElement.querySelector('.file-status-text');
@@ -1124,6 +1146,79 @@
         a.click();
         document.body.removeChild(a); 
         URL.revokeObjectURL(url); 
+    }
+
+    // --- HISTORY FUNCTIONS ---
+    function saveDownloadToHistory(fileName, fileSize) {
+        try {
+            const history = JSON.parse(localStorage.getItem('pingdropHistory') || '[]');
+            const newRecord = {
+                name: fileName,
+                size: fileSize,
+                timestamp: new Date().toISOString()
+            };
+            history.unshift(newRecord); // Add new records to the top
+            
+            if (history.length > MAX_HISTORY_ITEMS) {
+                history.pop(); // Remove the oldest item if history exceeds max size
+            }
+            localStorage.setItem('pingdropHistory', JSON.stringify(history));
+        } catch (e) {
+            console.error("Could not save to download history:", e);
+        }
+    }
+
+    function renderDownloadHistory() {
+        const historyListContainer = document.getElementById('download-history-list');
+        if (!historyListContainer) return;
+
+        let history = [];
+        try {
+            history = JSON.parse(localStorage.getItem('pingdropHistory') || '[]');
+        } catch (e) {
+            console.error("Could not retrieve download history:", e);
+            historyListContainer.innerHTML = '<p class="text-red-500 text-sm text-center py-6">Could not load download history.</p>';
+            return;
+        }
+
+        historyListContainer.innerHTML = ''; // Clear current list
+
+        if (history.length === 0) {
+            historyListContainer.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">No download history yet.</p>';
+            return;
+        }
+
+        history.forEach(record => {
+            const item = document.createElement('div');
+            item.className = 'history-item flex justify-between items-center p-3 bg-gray-100 rounded-lg shadow-sm';
+            const recordDate = new Date(record.timestamp);
+            // Format date to be more readable
+            const formattedDate = recordDate.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            item.innerHTML = `
+                <div class="flex items-center overflow-hidden mr-2">
+                    <i class="fas fa-check-circle text-green-500 mr-4 text-lg"></i>
+                    <div class="flex-grow overflow-hidden">
+                        <p class="text-sm font-medium text-gray-800 truncate" title="${escapeHTML(record.name)}">${escapeHTML(record.name)}</p>
+                        <p class="text-xs text-gray-500 mt-1">${formatFileSize(record.size)} &ndash; ${formattedDate}</p>
+                    </div>
+                </div>
+            `;
+            historyListContainer.appendChild(item);
+        });
+    }
+
+    function clearDownloadHistory() {
+        if (confirm('Are you sure you want to clear your entire download history? This action cannot be undone.')) {
+            try {
+                localStorage.removeItem('pingdropHistory');
+                renderDownloadHistory(); // Re-render the now-empty list
+                showToastNotification('Download history has been cleared.', 'info');
+            } catch (e) {
+                console.error("Could not clear download history:", e);
+                showToastNotification('Failed to clear history.', 'error');
+            }
+        }
     }
 
     window.addEventListener('load', () => {
