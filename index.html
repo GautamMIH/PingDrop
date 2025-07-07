@@ -543,6 +543,12 @@
         renderSelectedFiles(); 
         if (selectedFiles.length > 0) { if(startSessionBtn) startSessionBtn.style.display = 'inline-flex'; } 
         else { if(startSessionBtn) startSessionBtn.style.display = 'none';}
+        
+        // DYNAMIC UPDATE: If connected, send the updated list.
+        if (currentConnection && currentConnection.open) {
+            showMessage('send', 'File list updated. Resending to peer.', 'info');
+            sendFileList(currentConnection);
+        }
     }
 
     function renderSelectedFiles() { 
@@ -596,65 +602,84 @@
 
     function handleReceiverData(data) {
         if (data.type === 'file-list') {
-            if(receivedFilesList) receivedFilesList.innerHTML = ''; 
-            receiverDownloadQueue = []; 
-            currentDownloadingFileReceiver = null;
-            fileChunksCollector = {}; 
+            // DYNAMIC UPDATE: Instead of clearing the list, intelligently merge changes.
+            if (!receivedFilesList) return;
 
-            if (data.files && data.files.length > 0) {
-                data.files.forEach(file => {
+            const incomingFiles = data.files || [];
+            const incomingFileNames = new Set(incomingFiles.map(f => escapeHTML(f.name)));
+            const existingFileItems = receivedFilesList.querySelectorAll('.file-item');
+
+            // 1. Remove files that are no longer in the sender's list
+            existingFileItems.forEach(item => {
+                const fileName = item.dataset.filename;
+                if (!incomingFileNames.has(fileName)) {
+                    item.remove();
+                    delete fileChunksCollector[fileName]; // Clean up collector too
+                }
+            });
+
+            // 2. Add new files that are not already in the receiver's list
+            if (incomingFiles.length > 0) {
+                incomingFiles.forEach(file => {
                     const escapedFileName = escapeHTML(file.name);
-                    const item = document.createElement('div');
-                    item.className = 'file-item p-3 bg-gray-100 rounded-lg shadow-sm'; 
-                    item.dataset.filename = escapedFileName; 
-                    item.innerHTML = `
-                        <div class="flex justify-between items-center">
-                            <div class="flex items-center overflow-hidden mr-2">
-                                <i class="fas fa-file-alt text-blue-500 mr-3"></i>
-                                <span class="text-sm text-gray-700 truncate" title="${escapedFileName}">${escapedFileName}</span>
-                                <span class="text-xs text-gray-500 ml-2 whitespace-nowrap">(${formatFileSize(file.size)})</span>
+                    const existingItem = receivedFilesList.querySelector(`.file-item[data-filename="${escapedFileName}"]`);
+
+                    // Only add if it doesn't already exist
+                    if (!existingItem) {
+                        const item = document.createElement('div');
+                        item.className = 'file-item p-3 bg-gray-100 rounded-lg shadow-sm';
+                        item.dataset.filename = escapedFileName;
+                        item.innerHTML = `
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center overflow-hidden mr-2">
+                                    <i class="fas fa-file-alt text-blue-500 mr-3"></i>
+                                    <span class="text-sm text-gray-700 truncate" title="${escapedFileName}">${escapedFileName}</span>
+                                    <span class="text-xs text-gray-500 ml-2 whitespace-nowrap">(${formatFileSize(file.size)})</span>
+                                </div>
+                                <div class="flex items-center"> <button class="download-btn btn bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-lg shadow text-xs" 
+                                            data-filename="${escapedFileName}">
+                                        <i class="fas fa-download"></i> Download
+                                    </button>
+                                    <button class="cancel-btn btn bg-red-500 hover:bg-red-600 text-white font-medium py-1 px-3 rounded-lg shadow text-xs ml-2" 
+                                            data-filename="${escapedFileName}" style="display:none;">
+                                        <i class="fas fa-times-circle"></i> Cancel
+                                    </button>
+                                </div>
                             </div>
-                            <div class="flex items-center"> <button class="download-btn btn bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-lg shadow text-xs" 
-                                        data-filename="${escapedFileName}">
-                                    <i class="fas fa-download"></i> Download
-                                </button>
-                                <button class="cancel-btn btn bg-red-500 hover:bg-red-600 text-white font-medium py-1 px-3 rounded-lg shadow text-xs ml-2" 
-                                        data-filename="${escapedFileName}" style="display:none;">
-                                    <i class="fas fa-times-circle"></i> Cancel
-                                </button>
-                            </div>
-                        </div>
-                        <div class="file-progress-container mt-2" style="display:none;">
-                            <progress class="file-progress-bar w-full h-2 rounded-lg" value="0" max="100"></progress>
-                            <p class="file-status-text text-xs text-gray-500 mt-1">
-                                <span class="progress-percentage font-medium">0%</span>
-                                <span class="text-gray-400"> of </span>
-                                <span class="total-size-text text-gray-400">${formatFileSize(file.size)}</span>
-                                <span class="text-gray-400"> (</span><span class="received-size-text text-gray-400" style="display: inline-block; min-width: 75px; text-align: right;">0 Bytes</span><span class="text-gray-400"> received)</span>
-                                <span class="text-gray-400"> - </span>
-                                <span class="speed-text font-medium">Waiting...</span>
-                            </p>
-                        </div>`;
-                    if(receivedFilesList) {
+                            <div class="file-progress-container mt-2" style="display:none;">
+                                <progress class="file-progress-bar w-full h-2 rounded-lg" value="0" max="100"></progress>
+                                <p class="file-status-text text-xs text-gray-500 mt-1">
+                                    <span class="progress-percentage font-medium">0%</span>
+                                    <span class="text-gray-400"> of </span>
+                                    <span class="total-size-text text-gray-400">${formatFileSize(file.size)}</span>
+                                    <span class="text-gray-400"> (</span><span class="received-size-text text-gray-400" style="display: inline-block; min-width: 75px; text-align: right;">0 Bytes</span><span class="text-gray-400"> received)</span>
+                                    <span class="text-gray-400"> - </span>
+                                    <span class="speed-text font-medium">Waiting...</span>
+                                </p>
+                            </div>`;
+                        
                         receivedFilesList.appendChild(item);
-                    } 
-                    item.querySelector('.download-btn').addEventListener('click', function() {
-                        requestFileFromServer(this.dataset.filename);
-                    });
-                    item.querySelector('.cancel-btn').addEventListener('click', function() {
-                        handleCancelDownload(this.dataset.filename);
-                    });
+                        
+                        item.querySelector('.download-btn').addEventListener('click', function() {
+                            requestFileFromServer(this.dataset.filename);
+                        });
+                        item.querySelector('.cancel-btn').addEventListener('click', function() {
+                            handleCancelDownload(this.dataset.filename);
+                        });
+                        showToastNotification(`New file available: ${escapedFileName}`, 'info');
+                    }
                 });
-                if (downloadModeSelector) {
-                    downloadModeSelector.style.display = 'block';
-                } 
-                if (downloadAllContainer) {
-                    downloadAllContainer.style.display = 'block';
-                } 
+                
+                const hasFiles = receivedFilesList.querySelectorAll('.file-item').length > 0;
+                if (downloadModeSelector) downloadModeSelector.style.display = hasFiles ? 'block' : 'none';
+                if (downloadAllContainer) downloadAllContainer.style.display = hasFiles ? 'block' : 'none';
+                
             } else { 
                 if (downloadModeSelector) downloadModeSelector.style.display = 'none';
                 if (downloadAllContainer) downloadAllContainer.style.display = 'none';
-                showMessage('receive', 'Sender has no files to share at the moment.', 'info');
+                if (existingFileItems.length > 0) {
+                     showMessage('receive', 'Sender has removed all files.', 'info');
+                }
             }
         } else if (data.type === 'file-chunk') { 
             processFileChunk(data); 
@@ -1125,7 +1150,6 @@
             }
             if (cancelButton) cancelButton.style.display = 'none';
 
-            // ** BUG FIX APPLIED HERE **
             // Clean up the collector to free memory and prevent state issues.
             delete fileChunksCollector[name];
 
