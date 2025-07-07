@@ -1125,6 +1125,10 @@
             }
             if (cancelButton) cancelButton.style.display = 'none';
 
+            // ** BUG FIX APPLIED HERE **
+            // Clean up the collector to free memory and prevent state issues.
+            delete fileChunksCollector[name];
+
             if (currentConnection && currentConnection.open && fileData.lastReportedPercentage !== 100) {
                 currentConnection.send({ type: 'receiver-progress', fileName: name, percentage: 100, receivedBytes: fileData.receivedSize });
             }
