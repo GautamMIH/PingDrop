@@ -681,7 +681,6 @@
 </header>
 
 <main>
-    <!-- HERO -->
     <section class="hero">
         <div class="hero-eyebrow">No uploads. No servers. Just P2P.</div>
         <h1>Share files <strong>directly</strong><br>between browsers.</h1>
@@ -692,7 +691,6 @@
         </button>
     </section>
 
-    <!-- HOW IT WORKS -->
     <div class="content-section" id="how-it-works">
         <div class="section-label">How it works</div>
         <div class="steps">
@@ -723,14 +721,12 @@
         </div>
     </div>
 
-    <!-- FAQ -->
     <div class="content-section" id="faq">
         <div class="section-label">FAQ</div>
         <div class="faq" id="faqContainer"></div>
     </div>
 </main>
 
-<!-- MODAL OVERLAY -->
 <div class="overlay" id="overlay">
     <div class="modal">
         <div class="modal-header">
@@ -755,7 +751,6 @@
         </div>
         <div class="modal-body">
 
-            <!-- SEND TAB -->
             <div class="tab-panel active" id="tab-send">
                 <div class="drop-zone" id="dropZone">
                     <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -812,7 +807,6 @@
                 <div id="senderUploadsContainer" class="file-list"></div>
             </div>
 
-            <!-- RECEIVE TAB -->
             <div class="tab-panel" id="tab-receive">
                 <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">Enter Sender's Share ID</label>
                 <div class="connect-row">
@@ -848,7 +842,6 @@
                 <div id="receivedFilesList" class="file-list" style="margin-top:12px;"></div>
             </div>
 
-            <!-- HISTORY TAB -->
             <div class="tab-panel" id="tab-history">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <span style="font-size:14px;font-weight:500;">Download history</span>
@@ -878,21 +871,19 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    // Add TURN credentials here for production:
-    // { urls: 'turn:your.turn.server', username: '...', credential: '...' }
 ];
 const PEER_CONFIG = { debug: 0, config: { iceServers: ICE_SERVERS } };
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let senderPeer = null;
 let receiverPeer = null;
-let senderConnections = new Map(); // peerId → DataConnection (multi-peer support)
+let senderConnections = new Map();
 let receiverConnection = null;
 
 let selectedFiles = [];
-let senderRequestQueues = new Map(); // peerId → [{file, conn}]
+let senderRequestQueues = new Map();
 
-let fileChunksCollector = {};        // fileName → state
+let fileChunksCollector = {};        // Contains OPFS file handles & write streams
 let receiverDownloadQueue = [];
 let currentDownloadingFile = null;
 let downloadMode = 'parallel';
@@ -1009,7 +1000,6 @@ function escHtml(s) {
     if (typeof s !== 'string') return '';
     return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
 }
-// Safe CSS selector for data-filename attribute (handles special chars)
 function fileSelector(name) {
     return `.file-item[data-filename="${CSS.escape(name)}"]`;
 }
@@ -1056,11 +1046,6 @@ async function sha256(file) {
     const hashBuf = await crypto.subtle.digest('SHA-256', buf);
     return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
-async function sha256Blob(blob) {
-    const buf = await blob.arrayBuffer();
-    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
-    return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
 
 // ─── FILE SELECTION ───────────────────────────────────────────────────────────
 selectFilesBtn.addEventListener('click', e => { e.stopPropagation(); fileInput.value = null; fileInput.click(); });
@@ -1086,7 +1071,6 @@ function handleFiles(newFiles) {
     });
     renderSelectedFiles();
     if (selectedFiles.length > 0) startSessionWrap.style.display = 'block';
-    // Notify connected peers of updated file list
     senderConnections.forEach(conn => { if (conn.open) sendFileList(conn); });
 }
 
@@ -1186,7 +1170,6 @@ function setupSenderHandlers(p) {
             senderRequestQueues.delete(conn.peer);
             updatePeersList();
             showToast(`Peer ${conn.peer.slice(0,4)}… disconnected`, 'info');
-            // Clean up their upload items
             senderUploadsContainer.querySelectorAll(`[data-peer="${CSS.escape(conn.peer)}"]`).forEach(el => el.remove());
         });
         conn.on('error', err => {
@@ -1323,7 +1306,6 @@ function processSenderQueue(conn) {
 async function sendFileInChunks(conn, file) {
     const escapedName = file.name;
 
-    // Create upload item
     const uploadEl = document.createElement('div');
     uploadEl.className = 'upload-item';
     uploadEl.dataset.filename = escapedName;
@@ -1340,7 +1322,6 @@ async function sendFileInChunks(conn, file) {
         </div>`;
     senderUploadsContainer.prepend(uploadEl);
 
-    // Compute checksum in background (doesn't block sending)
     sha256(file).then(hash => {
         if (conn.open) conn.send({ type: 'file-checksum', fileName: file.name, sha256: hash });
     });
@@ -1412,7 +1393,6 @@ function connectToSender() {
             connectBtn.disabled = false;
             connectBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="20 6 9 17 4 12"/></svg> Connected`;
             setReceiverStatus('connected', `Connected to ${remoteId}`);
-            // Request notification permission
             if ('Notification' in window && Notification.permission === 'default') {
                 Notification.requestPermission();
             }
@@ -1458,13 +1438,12 @@ function resetConnectBtn() {
     connectBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Connect`;
 }
 
-// ─── RECEIVER DATA ────────────────────────────────────────────────────────────
+// ─── RECEIVER DATA WITH OPFS STORAGE ──────────────────────────────────────────
 function handleReceiverData(data) {
     if (data.type === 'file-list') {
         const incoming = data.files || [];
         const incomingNames = new Set(incoming.map(f => f.name));
 
-        // Remove files no longer in sender's list
         receivedFilesList.querySelectorAll('.file-item').forEach(el => {
             if (!incomingNames.has(el.dataset.filename)) {
                 el.remove();
@@ -1472,7 +1451,6 @@ function handleReceiverData(data) {
             }
         });
 
-        // Add new files
         incoming.forEach(f => {
             if (!receivedFilesList.querySelector(`[data-filename="${CSS.escape(f.name)}"]`)) {
                 addReceiverFileItem(f);
@@ -1497,7 +1475,7 @@ function handleReceiverData(data) {
         if (!data.success) {
             showToast(`Sender error: ${data.name}`, 'error');
             const state = fileChunksCollector[data.name];
-            if (state) { state.cancelled = true; }
+            if (state) state.cancelled = true;
             const el = receivedFilesList.querySelector(fileSelector(data.name));
             if (el) setFileItemStatus(el, 'error', 'Sender error');
             if (data.name === currentDownloadingFile) currentDownloadingFile = null;
@@ -1579,7 +1557,8 @@ downloadAllBtn.addEventListener('click', () => {
     setTimeout(() => { downloadAllBtn.disabled = false; }, 5000);
 });
 
-function requestFile(fileName) {
+// Initialize Asynchronous Temp File Stream in OPFS Storage
+async function requestFile(fileName) {
     const el = receivedFilesList.querySelector(fileSelector(fileName));
     if (!el) return;
     const state = fileChunksCollector[fileName];
@@ -1603,21 +1582,47 @@ function requestFile(fileName) {
     if (speedEl) speedEl.textContent = 'Starting…';
     if (etaEl) etaEl.textContent = '';
 
-    fileChunksCollector[fileName] = {
-        chunks: [], receivedSize: 0, totalSize: 0, totalChunks: 0, fileType: '',
-        completed: false, cancelled: false, senderDone: false,
-        expectedChecksum: null,
-        ignoredCount: 0,
-        lastSpeedTime: Date.now(), lastSpeedBytes: 0,
-        lastPct: 0, startTime: Date.now(),
-    };
+    try {
+        const root = await navigator.storage.getDirectory();
+        const tempName = `pingdrop_temp_${Date.now()}_${fileName}`;
+        const fileHandle = await root.getFileHandle(tempName, { create: true });
+        const writable = await fileHandle.createWritable();
 
-    receiverConnection.send({ type: 'request-file', fileName });
+        fileChunksCollector[fileName] = {
+            fileHandle,
+            writable,
+            writeChain: Promise.resolve(), // Prevents race conditions during asynchronous writes
+            tempName,
+            receivedSize: 0, totalSize: 0, totalChunks: 0, fileType: '',
+            completed: false, cancelled: false, senderDone: false,
+            expectedChecksum: null,
+            ignoredCount: 0,
+            lastSpeedTime: Date.now(), lastSpeedBytes: 0,
+            lastPct: 0, startTime: Date.now(),
+        };
+
+        receiverConnection.send({ type: 'request-file', fileName });
+    } catch (err) {
+        showToast(`Failed to allocate disk storage: ${err.message}`, 'error');
+        el.querySelector('.dl-btn').style.display = 'inline-flex';
+        el.querySelector('.dl-btn').disabled = false;
+        el.querySelector('.cancel-btn').style.display = 'none';
+        el.querySelector('.progress-wrap').style.display = 'none';
+    }
 }
 
 function cancelDownload(fileName) {
     const state = fileChunksCollector[fileName];
-    if (state) state.cancelled = true;
+    if (state) {
+        state.cancelled = true;
+        state.writeChain.then(async () => {
+            if (state.writable) {
+                try { await state.writable.close(); } catch(e){}
+            }
+            const root = await navigator.storage.getDirectory();
+            await root.removeEntry(state.tempName).catch(() => {});
+        });
+    }
     const el = receivedFilesList.querySelector(fileSelector(fileName));
     if (el) {
         el.querySelector('.cancel-btn').style.display = 'none';
@@ -1650,8 +1655,13 @@ function processChunk(data) {
     if (!el) return;
 
     if (chunk && chunkIndex !== undefined) {
-        state.chunks[chunkIndex] = chunk;
         state.receivedSize += chunk.byteLength;
+        // Append chunk to sequential promise chain targeting disk stream
+        state.writeChain = state.writeChain.then(async () => {
+            if (!state.cancelled && state.writable) {
+                await state.writable.write(chunk);
+            }
+        });
     }
 
     const progress = state.totalSize > 0 ? Math.min(100, Math.round(state.receivedSize / state.totalSize * 100)) : 0;
@@ -1672,7 +1682,6 @@ function processChunk(data) {
         state.lastSpeedBytes = state.receivedSize;
     }
 
-    // Report progress to sender
     if (receiverConnection && receiverConnection.open) {
         const floor = Math.floor(progress);
         if (floor > state.lastPct || (floor === 100 && state.lastPct !== 100)) {
@@ -1691,76 +1700,87 @@ async function finalizeFile(name) {
     if (!state || state.completed) return;
     state.completed = true;
 
-    const expectedChunks = state.totalChunks || Math.ceil(state.totalSize / CHUNK_SIZE);
-    const assembledChunks = [];
-    for (let i = 0; i < expectedChunks; i++) {
-        if (!state.chunks[i]) {
-            const el = receivedFilesList.querySelector(fileSelector(name));
-            if (el) setFileItemStatus(el, 'error', 'Assembly error: missing chunk');
-            showToast(`Assembly failed: ${name}`, 'error');
-            if (name === currentDownloadingFile) currentDownloadingFile = null;
-            processReceiverQueue();
+    const el = receivedFilesList.querySelector(fileSelector(name));
+
+    try {
+        // Wait for active disk writing actions to finish before resolving stream closure
+        await state.writeChain;
+        if (state.writable) {
+            await state.writable.close();
+        }
+
+        if (state.cancelled) {
+            const root = await navigator.storage.getDirectory();
+            await root.removeEntry(state.tempName).catch(() => {});
             return;
         }
-        assembledChunks.push(state.chunks[i]);
-    }
 
-    const blob = new Blob(assembledChunks, { type: state.fileType || 'application/octet-stream' });
+        // Pull the finished file handle from the local hard drive storage sandbox
+        const file = await state.fileHandle.getFile();
 
-    // Integrity check
-    const el = receivedFilesList.querySelector(fileSelector(name));
-    let integrityOk = null;
-    if (state.expectedChecksum) {
-        const actualHash = await sha256Blob(blob);
-        integrityOk = actualHash === state.expectedChecksum;
-    }
-
-    // Trigger download
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    // Save history
-    saveHistory(name, state.totalSize);
-
-    // Update UI
-    if (el) {
-        const bar = el.querySelector('.progress-bar-fill');
-        const pct = el.querySelector('.pct');
-        const dlBtn = el.querySelector('.dl-btn');
-        const cancelBtn = el.querySelector('.cancel-btn');
-        const etaEl = el.querySelector('.eta-text');
-        if (bar) { bar.style.width = '100%'; bar.classList.add('done'); }
-        if (pct) pct.textContent = '100%';
-        if (etaEl) etaEl.textContent = '';
-        if (cancelBtn) cancelBtn.style.display = 'none';
-        if (dlBtn) { dlBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="20 6 9 17 4 12"/></svg> Done`; dlBtn.style.display = 'inline-flex'; dlBtn.disabled = true; dlBtn.style.background = 'var(--green)'; dlBtn.style.borderColor = 'var(--green)'; dlBtn.style.color = 'white'; }
-
-        if (integrityOk !== null) {
-            const badge = document.createElement('span');
-            badge.className = `integrity-badge ${integrityOk ? 'ok' : 'fail'}`;
-            badge.innerHTML = integrityOk
-                ? `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Verified`
-                : `<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Checksum mismatch`;
-            el.querySelector('.progress-meta').appendChild(badge);
+        // Integrity check
+        let integrityOk = null;
+        if (state.expectedChecksum) {
+            try {
+                const buf = await file.arrayBuffer();
+                const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+                const actualHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+                integrityOk = actualHash === state.expectedChecksum;
+            } catch(e) {}
         }
 
-        const speedEl = el.querySelector('.speed-text');
-        if (speedEl) {
-            const totalSec = (Date.now() - state.startTime) / 1000;
-            const avgSpeed = totalSec > 0 ? state.totalSize / totalSec : 0;
-            speedEl.textContent = `Avg ${fmtSpeed(avgSpeed)}`;
+        // Trigger safe file delivery out of OPFS local sandbox space into system download pool
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        saveHistory(name, state.totalSize);
+
+        if (el) {
+            const bar = el.querySelector('.progress-bar-fill');
+            const pct = el.querySelector('.pct');
+            const dlBtn = el.querySelector('.dl-btn');
+            const cancelBtn = el.querySelector('.cancel-btn');
+            const etaEl = el.querySelector('.eta-text');
+            if (bar) { bar.style.width = '100%'; bar.classList.add('done'); }
+            if (pct) pct.textContent = '100%';
+            if (etaEl) etaEl.textContent = '';
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            if (dlBtn) { dlBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="20 6 9 17 4 12"/></svg> Done`; dlBtn.style.display = 'inline-flex'; dlBtn.disabled = true; dlBtn.style.background = 'var(--green)'; dlBtn.style.borderColor = 'var(--green)'; dlBtn.style.color = 'white'; }
+
+            if (integrityOk !== null) {
+                const badge = document.createElement('span');
+                badge.className = `integrity-badge ${integrityOk ? 'ok' : 'fail'}`;
+                badge.innerHTML = integrityOk
+                    ? `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Verified`
+                    : `<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Checksum mismatch`;
+                el.querySelector('.progress-meta').appendChild(badge);
+            }
+
+            const speedEl = el.querySelector('.speed-text');
+            if (speedEl) {
+                const totalSec = (Date.now() - state.startTime) / 1000;
+                const avgSpeed = totalSec > 0 ? state.totalSize / totalSec : 0;
+                speedEl.textContent = `Avg ${fmtSpeed(avgSpeed)}`;
+            }
         }
-    }
 
-    // Browser notification when tab is hidden
-    if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification('PingDrop — download complete', { body: name, icon: '/favicon.ico' });
-    }
+        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification('PingDrop — download complete', { body: name, icon: '/favicon.ico' });
+        }
 
-    showToast(`"${name}" downloaded`, 'success');
+        showToast(`"${name}" downloaded`, 'success');
+
+        // Delete the temporary file from the sandboxed disk structure to release system storage overhead
+        const root = await navigator.storage.getDirectory();
+        await root.removeEntry(state.tempName).catch(() => {});
+
+    } catch (err) {
+        if (el) setFileItemStatus(el, 'error', `Disk error: ${err.message}`);
+        showToast(`Assembly failed: ${name}`, 'error');
+    }
 
     delete fileChunksCollector[name];
     if (receiverConnection && receiverConnection.open && state.lastPct !== 100) {
